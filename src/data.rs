@@ -18,7 +18,9 @@ pub use self::{
     progress::{Activity, Level as LevelData, PlayTime},
 };
 
-pub use self::{combat::CurrentEncounter, inventory::Change, title_screen::GameStart};
+pub use self::{
+    combat::CurrentEncounter, ff1::Inventory, inventory::Change, title_screen::GameStart,
+};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Enemy {
@@ -431,6 +433,7 @@ impl KeyItem {
 pub struct Data<'a> {
     game: Game<'a>,
     battles: ff1::Battles,
+    items: ff1::Items,
     // title_screen: TitleScreen,
     // combat: Combat,
     // progression: Progression,
@@ -450,6 +453,10 @@ impl Data<'_> {
 
     pub fn current_scene(&mut self) -> Option<ArrayString<64>> {
         ff1::SceneManager::current_scene(&self.game)
+    }
+
+    pub fn inventory(&mut self) -> Option<ff1::Inventory> {
+        self.items.inventory(&self.game)
     }
 
     // pub fn game_start(&mut self) -> Option<GameStart> {
@@ -534,7 +541,7 @@ mod ff1 {
         Pointer,
     };
     use bytemuck::AnyBitPattern;
-    use csharp_mem::{Array, CSString, List};
+    use csharp_mem::{Array, CSString, List, Map};
 
     #[derive(Class2, Debug)]
     #[rename = "SceneManager"]
@@ -724,6 +731,64 @@ mod ff1 {
         battle_play: bool,
     }
 
+    #[derive(Class2, Debug)]
+    struct UserDataManager {
+        #[singleton]
+        #[singleton]
+        #[rename = "instance"]
+        _instance: Pointer<Self>,
+
+        #[rename = "importantOwnedItems"]
+        key_items: Pointer<Map<u32, Pointer<OwnedItemData>>>,
+
+        #[rename = "<OwnedTransportationList>k__BackingField"]
+        vehicles: Pointer<List<Pointer<OwnedTransportationData>>>,
+    }
+
+    #[derive(Class2, Debug)]
+    struct OwnedItemData {
+        #[rename = "<ListTypeId>k__BackingField"]
+        list_type_id: u32,
+
+        #[rename = "<ItemId>k__BackingField"]
+        item_id: u32,
+
+        #[rename = "<Item>k__BackingField"]
+        item: Pointer<Item>,
+
+        #[rename = "saveData"]
+        save_data: Pointer<OwnedItemSaveData>,
+    }
+
+    #[derive(Class2, Debug)]
+    struct OwnedItemSaveData {
+        #[rename = "contentId"]
+        content_id: u32,
+
+        #[rename = "count"]
+        count: u32,
+    }
+
+    #[derive(Class2, Debug)]
+    struct Item {
+        #[rename = "valueIntList"]
+        values: Pointer<Array<u32>>,
+    }
+
+    #[derive(Class2, Debug)]
+    struct OwnedTransportationData {
+        #[rename = "saveData"]
+        data: Pointer<SaveTransportationData>,
+    }
+
+    #[derive(Class2, Debug)]
+    struct SaveTransportationData {
+        id: u32,
+        #[rename = "mapId"]
+        map_id: i32,
+        enable: bool,
+    }
+
     struct MonsterStatic;
     #[allow(non_upper_case_globals)]
     impl MonsterStatic {
@@ -749,6 +814,15 @@ mod ff1 {
         const monster7_id_index: usize = 39;
         const monster8_id_index: usize = 43;
         const monster9_id_index: usize = 47;
+    }
+
+    #[derive(Debug)]
+    struct ItemStatic;
+    #[allow(non_upper_case_globals)]
+    impl ItemStatic {
+        const id_index: usize = 0;
+        const type_id: usize = 2;
+        const system_id: usize = 3;
     }
 
     #[derive(Debug)]
@@ -928,6 +1002,112 @@ mod ff1 {
             }
 
             Some(unsafe { result.assume_init() })
+        }
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    pub struct Inventory {
+        pub key_items: ArrayVec<KeyItem, 32>,
+        pub vehicles: ArrayVec<Vehicle, 4>,
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    struct KeyItem {
+        dict_id: u32,
+        item_id: u32,
+        master_id: u32,
+        list_id: u32,
+        type_id: u32,
+        system_id: u32,
+        content_id: u32,
+        count: u32,
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    struct Vehicle {
+        id: u32,
+        map_id: u32,
+        enable: bool,
+    }
+
+    struct Items {
+        user_data: UserDataManagerBinding,
+        item_data: OwnedItemDataBinding,
+        transport_data: OwnedTransportationDataBinding,
+        item: ItemBinding,
+        save_item: OwnedItemSaveDataBinding,
+        save_transport: SaveTransportationDataBinding,
+    }
+
+    impl Items {
+        pub fn new() -> Self {
+            Self {
+                user_data: UserDataManager::bind(),
+                item_data: OwnedItemData::bind(),
+                transport_data: OwnedTransportationData::bind(),
+                item: Item::bind(),
+                save_item: OwnedItemSaveData::bind(),
+                save_transport: SaveTransportationData::bind(),
+            }
+        }
+
+        pub fn inventory(&mut self, game: &Game<'_>) -> Option<Inventory> {
+            let manager = self.user_data.read(game)?;
+
+            let key_items = manager.key_items.resolve(game)?;
+
+            let key_items = key_items
+                .iter(game)
+                .filter_map(|(dict_id, item)| {
+                    let item = self.item_data.read_pointer(game, item)?;
+
+                    let item_item = self.item.read_pointer(game, item.item)?;
+                    let item_values = item_item.values.resolve(game)?;
+
+                    let master_id = item_values.get(game, ItemStatic::id_index)?;
+                    let type_id = item_values.get(game, ItemStatic::type_id)?;
+                    let system_id = item_values.get(game, ItemStatic::system_id)?;
+                    let item_id = item.item_id;
+                    let list_id = item.list_type_id;
+
+                    let save_item = self.save_item.read_pointer(game, item.save_data)?;
+                    let content_id = save_item.content_id;
+                    let count = save_item.count;
+
+                    Some(KeyItem {
+                        dict_id,
+                        item_id,
+                        master_id,
+                        list_id,
+                        type_id,
+                        system_id,
+                        content_id,
+                        count,
+                    })
+                })
+                .collect();
+
+            let vehicles = manager.vehicles.resolve(game)?;
+
+            let vehicles = vehicles
+                .iter(game)
+                .filter_map(|vehicle| {
+                    let vehicle = self.transport_data.read_pointer(game, vehicle)?;
+                    let vehicle = self.save_transport.read_pointer(game, vehicle.data)?;
+                    let map_id = u32::try_from(vehicle.map_id).ok()?;
+
+                    Some(Vehicle {
+                        id: vehicle.id,
+                        map_id,
+                        enable: vehicle.enable,
+                    })
+                })
+                .collect();
+
+            Some(Inventory {
+                key_items,
+                vehicles,
+            })
         }
     }
 }

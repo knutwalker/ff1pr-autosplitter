@@ -1,10 +1,11 @@
-use crate::data::{Change, CurrentEncounter, Data, GameStart};
+use crate::data::{Change, CurrentEncounter, Data, GameStart, Inventory};
 pub use crate::data::{Enemy, KeyItem, Level};
 use asr::{arrayvec::ArrayVec, watcher::Watcher};
 
 pub struct Game {
     in_battle: Watcher<bool>,
     battle_playing: Watcher<bool>,
+    inventory: Watcher<Inventory>,
     // loading: Watcher<bool>,
     // cutscene: Watcher<bool>,
     // level: Watcher<Level>,
@@ -40,6 +41,7 @@ impl Game {
         Self {
             in_battle: Watcher::new(),
             battle_playing: Watcher::new(),
+            inventory: Watcher::new(),
             // loading: Watcher::new(),
             // cutscene: Watcher::new(),
             // level: Watcher::new(),
@@ -84,6 +86,13 @@ impl Game {
             log!("Battle ended, encounter: {:?}", info);
         } else if in_battle.current {
             self.battle_playing.update_infallible(info.playing);
+        }
+
+        if let Some(inventory) = data.inventory() {
+            let inv = self.inventory.update_infallible(inventory);
+            if inv.changed() {
+                log!("Inventory changed: {:?}", inv.current);
+            }
         }
     }
 
