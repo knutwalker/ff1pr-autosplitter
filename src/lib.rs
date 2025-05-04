@@ -52,28 +52,45 @@ mod splits;
 
 asr::async_main!(stable);
 
+enum State<'a> {
+    NotRunning,
+    Running(Data<'a>, Progress),
+}
+
 async fn main() {
     asr::set_tick_rate(60.0);
     let settings = Settings::register();
     log!("Loaded settings: {settings:?}");
 
     loop {
-        let process = Process::wait_attach("SeaOfStars.exe").await;
+        let process = Process::wait_attach("FINAL FANTASY.exe").await;
         log!("attached to process");
         process
             .until_closes(async {
-                let mut data = Data::new(&process).await;
-                let mut progress = Progress::new();
+                let mut state = State::NotRunning;
 
-                loop {
-                    match timer::state() {
-                        TimerState::NotRunning => progress.not_running(&mut data),
-                        TimerState::Running => progress.running(&mut data),
-                        _ => {}
-                    }
+                'outer: loop {
+                    match state {
+                        State::NotRunning => {
+                            if timer::state() == TimerState::Running {
+                                state = State::Running(Data::new(&process).await, Progress::new());
+                                continue 'outer;
+                            }
+                        }
+                        State::Running(ref mut data, ref mut progress) => {
+                            match timer::state() {
+                                TimerState::NotRunning => {
+                                    state = State::NotRunning;
+                                    continue 'outer;
+                                }
+                                TimerState::Running => progress.running(data),
+                                _ => {}
+                            }
 
-                    for action in progress.actions() {
-                        act(action, &settings);
+                            for action in progress.actions() {
+                                act(action, &settings);
+                            }
+                        }
                     }
 
                     next_tick().await;

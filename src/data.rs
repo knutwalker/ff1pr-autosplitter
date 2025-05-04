@@ -3,12 +3,12 @@ use asr::{
     Process,
 };
 
-use self::{
-    combat::{Combat, Encounter},
-    inventory::Inventory,
-    progress::{CurrentProgression, Progression},
-    title_screen::TitleScreen,
-};
+// use self::{
+//     combat::{Combat, Encounter},
+//     inventory::Inventory,
+//     progress::{CurrentProgression, Progression},
+//     title_screen::TitleScreen,
+// };
 #[cfg(debugger)]
 pub use self::{
     combat::{Enemy as EnemyData, EnemyEncounter, EnemyMods, EnemyStats, General},
@@ -17,9 +17,7 @@ pub use self::{
     progress::{Activity, Level as LevelData, PlayTime},
 };
 
-pub use self::{
-    combat::CurrentEncounter, inventory::Change, progress::CurrentProgress, title_screen::GameStart,
-};
+pub use self::{combat::CurrentEncounter, inventory::Change, title_screen::GameStart};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Enemy {
@@ -431,64 +429,69 @@ impl KeyItem {
 
 pub struct Data<'a> {
     game: Game<'a>,
-    title_screen: TitleScreen,
-    combat: Combat,
-    progression: Progression,
-    inventory: Inventory,
-    #[cfg(debugger)]
-    loc: Localization<'a>,
+    battles: ff1::Battles,
+    // title_screen: TitleScreen,
+    // combat: Combat,
+    // progression: Progression,
+    // inventory: Inventory,
+    // #[cfg(debugger)]
+    // loc: Localization<'a>,
 }
 
 impl Data<'_> {
-    pub fn game_start(&mut self) -> Option<GameStart> {
-        self.title_screen.game_start(&self.game)
+    pub fn battle_info(&mut self) -> Option<ff1::BattleInfo> {
+        self.battles.battle_info(&self.game)
     }
 
-    pub fn current_progression(&mut self) -> Option<CurrentProgression> {
-        self.progression.current_progression(&self.game)
-    }
-
-    pub fn encounter(&mut self) -> Option<Encounter> {
-        self.combat.current_encounter(&self.game)
-    }
-
-    pub fn current_enemies(&mut self) -> CurrentEncounter {
-        self.combat.current_enemy_encounter(&self.game)
-    }
-
-    pub fn key_item_changes(&mut self) -> impl Iterator<Item = Change<KeyItem>> + '_ {
-        self.inventory.check_key_items(&self.game)
-    }
-
-    #[cfg(debugger)]
-    pub fn progress(&mut self) -> Option<CurrentProgress> {
-        let loc = Self::loc(&self.game, &mut self.loc)?;
-        self.progression.get_progress(&self.game, loc)
-    }
-
-    #[cfg(debugger)]
-    pub fn deep_resolve_encounter(&mut self) -> Option<combat::BattleEncounter> {
-        let loc = Self::loc(&self.game, &mut self.loc)?;
-        self.combat.resolve(&self.game, loc)
-    }
-
-    #[cfg(debugger)]
-    pub fn check_for_changed_key_items(
-        &mut self,
-    ) -> impl Iterator<Item = Change<&'_ NamedKeyItem>> + '_ {
-        fn inner<'a>(
-            this: &'a mut Data<'_>,
-        ) -> Option<impl Iterator<Item = Change<&'a NamedKeyItem>> + 'a> {
-            let loc = Data::loc(&this.game, &mut this.loc)?;
-            Some(this.inventory.check_new(&this.game, loc))
-        }
-        inner(self).into_iter().flatten()
-    }
-
-    #[cfg(debugger)]
-    fn loc<'a, 'p>(game: &Game<'p>, loc: &'a mut Localization<'p>) -> Option<&'a Loc> {
-        loc.resolve(game.process(), game.module())
-    }
+    // pub fn game_start(&mut self) -> Option<GameStart> {
+    //     self.title_screen.game_start(&self.game)
+    // }
+    //
+    // pub fn current_progression(&mut self) -> Option<CurrentProgression> {
+    //     self.progression.current_progression(&self.game)
+    // }
+    //
+    // pub fn encounter(&mut self) -> Option<Encounter> {
+    //     self.combat.current_encounter(&self.game)
+    // }
+    //
+    // pub fn current_enemies(&mut self) -> CurrentEncounter {
+    //     self.combat.current_enemy_encounter(&self.game)
+    // }
+    //
+    // pub fn key_item_changes(&mut self) -> impl Iterator<Item = Change<KeyItem>> + '_ {
+    //     self.inventory.check_key_items(&self.game)
+    // }
+    //
+    // #[cfg(debugger)]
+    // pub fn progress(&mut self) -> Option<CurrentProgress> {
+    //     let loc = Self::loc(&self.game, &mut self.loc)?;
+    //     self.progression.get_progress(&self.game, loc)
+    // }
+    //
+    // #[cfg(debugger)]
+    // pub fn deep_resolve_encounter(&mut self) -> Option<combat::BattleEncounter> {
+    //     let loc = Self::loc(&self.game, &mut self.loc)?;
+    //     self.combat.resolve(&self.game, loc)
+    // }
+    //
+    // #[cfg(debugger)]
+    // pub fn check_for_changed_key_items(
+    //     &mut self,
+    // ) -> impl Iterator<Item = Change<&'_ NamedKeyItem>> + '_ {
+    //     fn inner<'a>(
+    //         this: &'a mut Data<'_>,
+    //     ) -> Option<impl Iterator<Item = Change<&'a NamedKeyItem>> + 'a> {
+    //         let loc = Data::loc(&this.game, &mut this.loc)?;
+    //         Some(this.inventory.check_new(&this.game, loc))
+    //     }
+    //     inner(self).into_iter().flatten()
+    // }
+    //
+    // #[cfg(debugger)]
+    // fn loc<'a, 'p>(game: &Game<'p>, loc: &'a mut Localization<'p>) -> Option<&'a Loc> {
+    //     loc.resolve(game.process(), game.module())
+    // }
 }
 
 impl<'a> Data<'a> {
@@ -500,12 +503,284 @@ impl<'a> Data<'a> {
 
         Self {
             game,
-            title_screen: TitleScreen::new(),
-            combat: Combat::new(),
-            progression: Progression::new(),
-            inventory: Inventory::new(),
-            #[cfg(debugger)]
-            loc: Localization::new(),
+            battles: ff1::Battles::new(),
+            // title_screen: TitleScreen::new(),
+            // combat: Combat::new(),
+            // progression: Progression::new(),
+            // inventory: Inventory::new(),
+            // #[cfg(debugger)]
+            // loc: Localization::new(),
+        }
+    }
+}
+
+mod ff1 {
+
+    use asr::{
+        arrayvec::ArrayVec,
+        game_engine::unity::il2cpp::{Class2, Game},
+        Pointer,
+    };
+    use bytemuck::AnyBitPattern;
+    use csharp_mem::Array;
+
+    #[derive(Class2, Debug)]
+    #[rename = "Last.Battle.BattlePlugManager"]
+    struct BattlePlugManager {
+        #[singleton]
+        #[rename = "instance"]
+        _instance: Pointer<Self>,
+        #[rename = "<InstantiateManager>k__BackingField"]
+        instantiate_manager: Pointer<InstantiateManager>,
+        #[rename = "isBattle"]
+        active: bool,
+    }
+
+    #[derive(Class2, Debug)]
+    #[rename = "Last.Battle.InstantiateManager"]
+    struct InstantiateManager {
+        #[rename = "<battleEnemyInstanceData>k__BackingField"]
+        enemy_data: Pointer<BattleEnemyInstanceData>,
+    }
+
+    #[derive(Class2, Debug)]
+    #[rename = "Last.Battle.BattleEnemyInstanceData"]
+    struct BattleEnemyInstanceData {
+        #[rename = "<monsterParty>k__BackingField"]
+        monster_party: Pointer<MonsterParty>,
+        #[rename = "monsterDatas"]
+        monster_data: Pointer<Array<MonsterData>>,
+    }
+
+    #[derive(Class2, Debug)]
+    #[rename = "Last.Data.Master.MonsterParty"]
+    struct MonsterParty {
+        #[rename = "valueIntList"]
+        values: Pointer<Array<u32>>,
+    }
+
+    #[derive(AnyBitPattern, Debug, Copy, Clone)]
+    struct MonsterData {
+        unique_id: u32,
+        monster: Pointer<Monster>,
+        pos: [u32; 2],
+    }
+
+    #[derive(Class2, Debug)]
+    #[rename = "Last.Data.Master.Monster"]
+    struct Monster {
+        #[rename = "valueIntList"]
+        values: Pointer<Array<u32>>,
+    }
+
+    #[derive(Class2, Debug)]
+    #[rename = "Last.Data.Master.Monster"]
+    struct MonsterStatic {
+        #[rename = "_index_id"]
+        #[static_field]
+        id_index: u32,
+
+        #[rename = "_index_lv"]
+        #[static_field]
+        level_index: u32,
+
+        #[rename = "_index_hp"]
+        #[static_field]
+        hp_index: u32,
+
+        #[rename = "_index_exp"]
+        #[static_field]
+        exp_index: u32,
+
+        #[rename = "_index_gill"]
+        #[static_field]
+        gil_index: u32,
+
+        #[rename = "_index_boss"]
+        #[static_field]
+        boss_index: u32,
+    }
+
+    #[derive(Class2, Debug)]
+    #[rename = "Last.Data.Master.MonsterParty"]
+    struct MonsterPartyStatic {
+        #[rename = "_index_id"]
+        #[static_field]
+        id_index: u32,
+        #[rename = "_index_monster1"]
+        #[static_field]
+        monster1_id_index: u32,
+        #[rename = "_index_monster2"]
+        #[static_field]
+        monster2_id_index: u32,
+        #[rename = "_index_monster3"]
+        #[static_field]
+        monster3_id_index: u32,
+        #[rename = "_index_monster4"]
+        #[static_field]
+        monster4_id_index: u32,
+        #[rename = "_index_monster5"]
+        #[static_field]
+        monster5_id_index: u32,
+        #[rename = "_index_monster6"]
+        #[static_field]
+        monster6_id_index: u32,
+        #[rename = "_index_monster7"]
+        #[static_field]
+        monster7_id_index: u32,
+        #[rename = "_index_monster8"]
+        #[static_field]
+        monster8_id_index: u32,
+        #[rename = "_index_monster9"]
+        #[static_field]
+        monster9_id_index: u32,
+    }
+
+    #[derive(Debug)]
+    pub struct BattleInfo {
+        pub active: bool,
+        pub encounter_id: u32,
+        pub enemy_ids: ArrayVec<u32, 9>,
+        pub enemies: ArrayVec<Enemy, 9>,
+    }
+
+    #[derive(Debug)]
+    pub struct Enemy {
+        pub id: u32,
+        pub level: u32,
+        pub hp: u32,
+        pub exp: u32,
+        pub gil: u32,
+        pub boss: bool,
+    }
+
+    pub struct Battles {
+        manager: BattlePlugManagerBinding,
+        instantiate: InstantiateManagerBinding,
+        enemy_data: BattleEnemyInstanceDataBinding,
+        monster_party: MonsterPartyBinding,
+        monster: MonsterBinding,
+        monster_static: MonsterStaticBinding,
+        monster_party_static: MonsterPartyStaticBinding,
+    }
+
+    impl Battles {
+        pub fn new() -> Self {
+            Self {
+                manager: BattlePlugManager::bind(),
+                instantiate: InstantiateManager::bind(),
+                enemy_data: BattleEnemyInstanceData::bind(),
+                monster_party: MonsterParty::bind(),
+                monster: Monster::bind(),
+                monster_static: MonsterStatic::bind(),
+                monster_party_static: MonsterPartyStatic::bind(),
+            }
+        }
+
+        pub fn battle_info(&mut self, game: &Game<'_>) -> Option<BattleInfo> {
+            let manager = self.manager.read(game)?;
+
+            let mp = self.monster_party_static.read(game)?;
+            let mon = self.monster_static.read(game)?;
+
+            let instantiate = self
+                .instantiate
+                .read_pointer(game, manager.instantiate_manager)?;
+            let enemy_data = self.enemy_data.read_pointer(game, instantiate.enemy_data)?;
+
+            let monster_party = self
+                .monster_party
+                .read_pointer(game, enemy_data.monster_party)?;
+            let monster_party = monster_party.values.resolve(game)?;
+
+            let mut encounter_id = u32::MAX;
+            let mut enemy_ids = ArrayVec::new();
+
+            for (idx, value) in monster_party.iter(game).enumerate() {
+                let idx = idx as u32;
+                if idx == mp.id_index {
+                    encounter_id = value;
+                }
+                if idx == mp.monster1_id_index {
+                    enemy_ids.push(value);
+                }
+                if idx == mp.monster2_id_index {
+                    enemy_ids.push(value);
+                }
+                if idx == mp.monster3_id_index {
+                    enemy_ids.push(value);
+                }
+                if idx == mp.monster4_id_index {
+                    enemy_ids.push(value);
+                }
+                if idx == mp.monster5_id_index {
+                    enemy_ids.push(value);
+                }
+                if idx == mp.monster6_id_index {
+                    enemy_ids.push(value);
+                }
+                if idx == mp.monster7_id_index {
+                    enemy_ids.push(value);
+                }
+                if idx == mp.monster8_id_index {
+                    enemy_ids.push(value);
+                }
+                if idx == mp.monster9_id_index {
+                    enemy_ids.push(value);
+                }
+            }
+
+            let mut enemies = ArrayVec::new();
+
+            let monster_data = enemy_data.monster_data.resolve(game)?;
+            for monster_data in monster_data.iter(game) {
+                let Some(monster) = self.monster.read_pointer(game, monster_data.monster) else {
+                    continue;
+                };
+
+                let Some(monster) = monster.values.resolve(game) else {
+                    continue;
+                };
+
+                let mut enemy = Enemy {
+                    id: u32::MAX,
+                    level: u32::MAX,
+                    hp: u32::MAX,
+                    exp: u32::MAX,
+                    gil: u32::MAX,
+                    boss: false,
+                };
+                for (idx, value) in monster.iter(game).enumerate() {
+                    let idx = idx as u32;
+                    if idx == mon.id_index {
+                        enemy.id = value;
+                    }
+                    if idx == mon.level_index {
+                        enemy.level = value;
+                    }
+                    if idx == mon.hp_index {
+                        enemy.hp = value;
+                    }
+                    if idx == mon.exp_index {
+                        enemy.exp = value;
+                    }
+                    if idx == mon.gil_index {
+                        enemy.gil = value;
+                    }
+                    if idx == mon.boss_index {
+                        enemy.boss = value != 0;
+                    }
+                }
+
+                enemies.push(enemy);
+            }
+
+            Some(BattleInfo {
+                active: manager.active,
+                encounter_id,
+                enemy_ids,
+                enemies,
+            })
         }
     }
 }
