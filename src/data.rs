@@ -1,5 +1,6 @@
 use asr::{
     game_engine::unity::il2cpp::{Game, Module, Version},
+    string::ArrayString,
     Process,
 };
 
@@ -439,8 +440,16 @@ pub struct Data<'a> {
 }
 
 impl Data<'_> {
+    pub fn battle_active(&mut self) -> bool {
+        self.battles.active(&self.game)
+    }
+
     pub fn battle_info(&mut self) -> Option<ff1::BattleInfo> {
-        self.battles.battle_info(&self.game)
+        self.battles.info(&self.game)
+    }
+
+    pub fn current_scene(&mut self) -> Option<ArrayString<64>> {
+        ff1::SceneManager::current_scene(&self.game)
     }
 
     // pub fn game_start(&mut self) -> Option<GameStart> {
@@ -496,7 +505,7 @@ impl Data<'_> {
 
 impl<'a> Data<'a> {
     pub async fn new(process: &'a Process) -> Data<'a> {
-        let module = Module::wait_attach(process, Version::V2020).await;
+        let module = Module::wait_attach_auto_detect(process).await;
         let image = module.wait_get_default_image(process).await;
         log!("Attached to the game");
         let game = Game::new(process, module, image);
@@ -516,35 +525,63 @@ impl<'a> Data<'a> {
 
 mod ff1 {
 
+    use std::{mem::MaybeUninit, ptr::addr_of_mut, u32};
+
     use asr::{
         arrayvec::ArrayVec,
         game_engine::unity::il2cpp::{Class2, Game},
+        string::ArrayString,
         Pointer,
     };
     use bytemuck::AnyBitPattern;
-    use csharp_mem::Array;
+    use csharp_mem::{Array, CSString, List};
 
     #[derive(Class2, Debug)]
-    #[rename = "Last.Battle.BattlePlugManager"]
+    #[rename = "SceneManager"]
+    pub(super) struct SceneManager {
+        #[singleton]
+        #[rename = "instance"]
+        _instance: Pointer<Self>,
+        #[rename = "currentSceneName"]
+        current_scene: Pointer<CSString>,
+    }
+
+    impl SceneManager {
+        pub fn current_scene(game: &Game) -> Option<ArrayString<64>> {
+            let scene_manager = SceneManager::bind().read(game)?;
+
+            let current_scene = scene_manager.current_scene.resolve(game)?;
+            Some(current_scene.to_string(game))
+        }
+    }
+
+    #[derive(Class2, Debug)]
+    #[rename = "BattlePlugManager"]
     struct BattlePlugManager {
         #[singleton]
         #[rename = "instance"]
         _instance: Pointer<Self>,
         #[rename = "<InstantiateManager>k__BackingField"]
         instantiate_manager: Pointer<InstantiateManager>,
+        #[rename = "<BattleEndJugment>k__BackingField"]
+        judgement: Pointer<BattleEndJudgment>,
+        #[rename = "<BattleStatusControl>k__BackingField"]
+        status: Pointer<BattleStatusControl>,
+        #[rename = "<EventCommand>k__BackingField"]
+        event: Pointer<EventCommand>,
         #[rename = "isBattle"]
         active: bool,
     }
 
     #[derive(Class2, Debug)]
-    #[rename = "Last.Battle.InstantiateManager"]
+    #[rename = "InstantiateManager"]
     struct InstantiateManager {
         #[rename = "<battleEnemyInstanceData>k__BackingField"]
         enemy_data: Pointer<BattleEnemyInstanceData>,
     }
 
     #[derive(Class2, Debug)]
-    #[rename = "Last.Battle.BattleEnemyInstanceData"]
+    #[rename = "BattleEnemyInstanceData"]
     struct BattleEnemyInstanceData {
         #[rename = "<monsterParty>k__BackingField"]
         monster_party: Pointer<MonsterParty>,
@@ -553,95 +590,187 @@ mod ff1 {
     }
 
     #[derive(Class2, Debug)]
-    #[rename = "Last.Data.Master.MonsterParty"]
+    #[rename = "MonsterParty"]
     struct MonsterParty {
         #[rename = "valueIntList"]
         values: Pointer<Array<u32>>,
     }
 
     #[derive(AnyBitPattern, Debug, Copy, Clone)]
+    #[repr(C)]
     struct MonsterData {
         unique_id: u32,
+        _padding: u32,
         monster: Pointer<Monster>,
         pos: [u32; 2],
     }
 
     #[derive(Class2, Debug)]
-    #[rename = "Last.Data.Master.Monster"]
+    #[rename = "Monster"]
     struct Monster {
         #[rename = "valueIntList"]
         values: Pointer<Array<u32>>,
     }
 
-    #[derive(Class2, Debug)]
-    #[rename = "Last.Data.Master.Monster"]
-    struct MonsterStatic {
-        #[rename = "_index_id"]
-        #[static_field]
-        id_index: u32,
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+    #[repr(u32)]
+    pub enum BattleEnd {
+        Normal,
+        LoseEvent,
+        Forced,
+        Unknown = u32::MAX,
+    }
 
-        #[rename = "_index_lv"]
-        #[static_field]
-        level_index: u32,
+    impl BattleEnd {
+        fn from(value: u32) -> Self {
+            match value {
+                0 => Self::Normal,
+                1 => Self::LoseEvent,
+                2 => Self::Forced,
+                _ => Self::Unknown,
+            }
+        }
+    }
 
-        #[rename = "_index_hp"]
-        #[static_field]
-        hp_index: u32,
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+    #[repr(u32)]
+    pub enum BattleResult {
+        None,
+        Win,
+        Lose,
+        Escape,
+        Forced,
+        Restart,
+        Unknown = u32::MAX,
+    }
 
-        #[rename = "_index_exp"]
-        #[static_field]
-        exp_index: u32,
-
-        #[rename = "_index_gill"]
-        #[static_field]
-        gil_index: u32,
-
-        #[rename = "_index_boss"]
-        #[static_field]
-        boss_index: u32,
+    impl BattleResult {
+        fn from(value: u32) -> Self {
+            match value {
+                0 => Self::None,
+                1 => Self::Win,
+                2 => Self::Lose,
+                3 => Self::Escape,
+                4 => Self::Forced,
+                5 => Self::Restart,
+                _ => Self::Unknown,
+            }
+        }
     }
 
     #[derive(Class2, Debug)]
-    #[rename = "Last.Data.Master.MonsterParty"]
-    struct MonsterPartyStatic {
-        #[rename = "_index_id"]
-        #[static_field]
-        id_index: u32,
-        #[rename = "_index_monster1"]
-        #[static_field]
-        monster1_id_index: u32,
-        #[rename = "_index_monster2"]
-        #[static_field]
-        monster2_id_index: u32,
-        #[rename = "_index_monster3"]
-        #[static_field]
-        monster3_id_index: u32,
-        #[rename = "_index_monster4"]
-        #[static_field]
-        monster4_id_index: u32,
-        #[rename = "_index_monster5"]
-        #[static_field]
-        monster5_id_index: u32,
-        #[rename = "_index_monster6"]
-        #[static_field]
-        monster6_id_index: u32,
-        #[rename = "_index_monster7"]
-        #[static_field]
-        monster7_id_index: u32,
-        #[rename = "_index_monster8"]
-        #[static_field]
-        monster8_id_index: u32,
-        #[rename = "_index_monster9"]
-        #[static_field]
-        monster9_id_index: u32,
+    #[rename = "BattleEndJugment"]
+    struct BattleEndJudgment {
+        #[rename = "<CurrentEndJugmentType>k__BackingField"]
+        end: u32,
+        #[rename = "resultType"]
+        result: u32,
+        #[rename = "isForce"]
+        force: bool,
+        #[rename = "isEnabled"]
+        enabled: bool,
+    }
+
+    #[derive(Class2, Debug)]
+    #[rename = "BattleStatusControl"]
+    struct BattleStatusControl {
+        #[rename = "<BattleStatusControlInfo>k__BackingField"]
+        info: Pointer<BattleStatusControlInfo>,
+    }
+
+    #[derive(Class2, Debug)]
+    #[rename = "BattleStatusControlInfo"]
+    struct BattleStatusControlInfo {
+        #[rename = "battleEnemyDatas"]
+        enemies: Pointer<List<Pointer<BattleEnemyData>>>,
+    }
+
+    #[derive(Class2, Debug)]
+    #[rename = "BattleEnemyData"]
+    struct BattleEnemyData {
+        #[rename = "<BattleUnitDataInfo>k__BackingField"]
+        unit_data: Pointer<BattleUnitDataInfo>,
+    }
+
+    #[derive(Class2, Debug)]
+    #[rename = "BattleUnitDataInfo"]
+    struct BattleUnitDataInfo {
+        #[rename = "<Parameter>k__BackingField"]
+        parameter: Pointer<CharacterParameterBase>,
+    }
+
+    #[derive(Class2, Debug)]
+    #[rename = "CharacterParameterBase"]
+    struct CharacterParameterBase {
+        #[rename = "<BaseLevel>k__BackingField"]
+        level: u32,
+
+        #[rename = "currentHP"]
+        current_hp: u32,
+
+        #[rename = "<BaseMaxHp>k__BackingField"]
+        max_hp: u32,
+    }
+
+    #[derive(Class2, Debug)]
+    #[rename = "EventCommand"]
+    struct EventCommand {
+        // #[rename = "<prevPlayerNonAct>k__BackingField"]
+        // prev_player_non_act: bool,
+
+        // #[rename = "<prevEnemyNonAct>k__BackingField"]
+        // prev_enemy_non_act: bool,
+        #[rename = "<isBattlePlay>k__BackingField"]
+        battle_play: bool,
+    }
+
+    struct MonsterStatic;
+    #[allow(non_upper_case_globals)]
+    impl MonsterStatic {
+        const id_index: usize = 0;
+        const level_index: usize = 9;
+        const hp_index: usize = 10;
+        const exp_index: usize = 12;
+        const gil_index: usize = 13;
+        const boss_index: usize = 37;
+    }
+
+    #[derive(Debug)]
+    struct MonsterPartyStatic;
+    #[allow(non_upper_case_globals)]
+    impl MonsterPartyStatic {
+        const id_index: usize = 0;
+        const monster1_id_index: usize = 15;
+        const monster2_id_index: usize = 19;
+        const monster3_id_index: usize = 23;
+        const monster4_id_index: usize = 27;
+        const monster5_id_index: usize = 31;
+        const monster6_id_index: usize = 35;
+        const monster7_id_index: usize = 39;
+        const monster8_id_index: usize = 43;
+        const monster9_id_index: usize = 47;
     }
 
     #[derive(Debug)]
     pub struct BattleInfo {
         pub active: bool,
+        pub playing: bool,
+        pub end_enabled: bool,
+        pub forced: bool,
+        pub end: BattleEnd,
+        pub result: BattleResult,
+        // pub enemies_left: u32,
         pub encounter_id: u32,
         pub enemy_ids: ArrayVec<u32, 9>,
-        pub enemies: ArrayVec<Enemy, 9>,
+        // pub targets: ArrayVec<Target, 9>,
+        pub encounter_enemies: ArrayVec<Enemy, 9>,
+    }
+
+    #[derive(Debug)]
+    pub struct Target {
+        pub level: u32,
+        pub hp: u32,
+        pub hp_max: u32,
     }
 
     #[derive(Debug)]
@@ -657,11 +786,16 @@ mod ff1 {
     pub struct Battles {
         manager: BattlePlugManagerBinding,
         instantiate: InstantiateManagerBinding,
-        enemy_data: BattleEnemyInstanceDataBinding,
+        judgement: BattleEndJudgmentBinding,
+        enemy_instance: BattleEnemyInstanceDataBinding,
+        status_control: BattleStatusControlBinding,
+        control_info: BattleStatusControlInfoBinding,
+        enemy_data: BattleEnemyDataBinding,
+        unit_data: BattleUnitDataInfoBinding,
+        parameter: CharacterParameterBaseBinding,
+        event_command: EventCommandBinding,
         monster_party: MonsterPartyBinding,
         monster: MonsterBinding,
-        monster_static: MonsterStaticBinding,
-        monster_party_static: MonsterPartyStaticBinding,
     }
 
     impl Battles {
@@ -669,118 +803,131 @@ mod ff1 {
             Self {
                 manager: BattlePlugManager::bind(),
                 instantiate: InstantiateManager::bind(),
-                enemy_data: BattleEnemyInstanceData::bind(),
+                judgement: BattleEndJudgment::bind(),
+                enemy_instance: BattleEnemyInstanceData::bind(),
+                status_control: BattleStatusControl::bind(),
+                control_info: BattleStatusControlInfo::bind(),
+                enemy_data: BattleEnemyData::bind(),
+                unit_data: BattleUnitDataInfo::bind(),
+                parameter: CharacterParameterBase::bind(),
+                event_command: EventCommand::bind(),
                 monster_party: MonsterParty::bind(),
                 monster: Monster::bind(),
-                monster_static: MonsterStatic::bind(),
-                monster_party_static: MonsterPartyStatic::bind(),
             }
         }
 
-        pub fn battle_info(&mut self, game: &Game<'_>) -> Option<BattleInfo> {
-            let manager = self.manager.read(game)?;
+        pub fn active(&mut self, game: &Game<'_>) -> bool {
+            self.manager
+                .read(game)
+                .map(|m| m.active)
+                .unwrap_or_default()
+        }
 
-            let mp = self.monster_party_static.read(game)?;
-            let mon = self.monster_static.read(game)?;
+        pub fn info(&mut self, game: &Game<'_>) -> Option<BattleInfo> {
+            let manager = self.manager.read(game)?;
 
             let instantiate = self
                 .instantiate
                 .read_pointer(game, manager.instantiate_manager)?;
-            let enemy_data = self.enemy_data.read_pointer(game, instantiate.enemy_data)?;
+
+            let event_command = self.event_command.read_pointer(game, manager.event)?;
+
+            let mut result = MaybeUninit::<BattleInfo>::uninit();
+            let ptr = result.as_mut_ptr();
+
+            unsafe {
+                addr_of_mut!((*ptr).active).write(manager.active);
+                addr_of_mut!((*ptr).playing).write(event_command.battle_play);
+            }
+
+            let judgement = self.judgement.read_pointer(game, manager.judgement)?;
+            unsafe {
+                addr_of_mut!((*ptr).end_enabled).write(judgement.enabled);
+                addr_of_mut!((*ptr).forced).write(judgement.force);
+                addr_of_mut!((*ptr).end).write(BattleEnd::from(judgement.end));
+                addr_of_mut!((*ptr).result).write(BattleResult::from(judgement.result));
+            }
+
+            // let control = self.status_control.read_pointer(game, manager.status)?;
+            // let control = self.control_info.read_pointer(game, control.info)?;
+            // let enemies = control.enemies.resolve(game)?;
+
+            // let targets = enemies
+            //     .iter(game)
+            //     .filter_map(|enemy| {
+            //         let enemy = self.enemy_data.read_pointer(game, enemy)?;
+            //         let enemy = self.unit_data.read_pointer(game, enemy.unit_data)?;
+            //         let enemy = self.parameter.read_pointer(game, enemy.parameter)?;
+
+            //         let target = Target {
+            //             level: enemy.level,
+            //             hp: enemy.current_hp,
+            //             hp_max: enemy.max_hp,
+            //         };
+
+            //         Some(target)
+            //     })
+            //     .collect();
+
+            // unsafe {
+            //     addr_of_mut!((*ptr).enemies_left).write(enemies.size());
+            //     addr_of_mut!((*ptr).targets).write(targets);
+            //     // addr_of_mut!((*ptr).enemies_left).write(0);
+            //     // addr_of_mut!((*ptr).targets).write(ArrayVec::new());
+            // }
+
+            let enemy_data = self
+                .enemy_instance
+                .read_pointer(game, instantiate.enemy_data)?;
 
             let monster_party = self
                 .monster_party
                 .read_pointer(game, enemy_data.monster_party)?;
             let monster_party = monster_party.values.resolve(game)?;
 
-            let mut encounter_id = u32::MAX;
-            let mut enemy_ids = ArrayVec::new();
-
-            for (idx, value) in monster_party.iter(game).enumerate() {
-                let idx = idx as u32;
-                if idx == mp.id_index {
-                    encounter_id = value;
-                }
-                if idx == mp.monster1_id_index {
-                    enemy_ids.push(value);
-                }
-                if idx == mp.monster2_id_index {
-                    enemy_ids.push(value);
-                }
-                if idx == mp.monster3_id_index {
-                    enemy_ids.push(value);
-                }
-                if idx == mp.monster4_id_index {
-                    enemy_ids.push(value);
-                }
-                if idx == mp.monster5_id_index {
-                    enemy_ids.push(value);
-                }
-                if idx == mp.monster6_id_index {
-                    enemy_ids.push(value);
-                }
-                if idx == mp.monster7_id_index {
-                    enemy_ids.push(value);
-                }
-                if idx == mp.monster8_id_index {
-                    enemy_ids.push(value);
-                }
-                if idx == mp.monster9_id_index {
-                    enemy_ids.push(value);
-                }
+            let encounter_id = monster_party.get(game, MonsterPartyStatic::id_index)?;
+            unsafe {
+                addr_of_mut!((*ptr).encounter_id).write(encounter_id);
             }
 
-            let mut enemies = ArrayVec::new();
+            let mut enemy_ids = ArrayVec::new();
+            enemy_ids.push(monster_party.get(game, MonsterPartyStatic::monster1_id_index)?);
+            enemy_ids.push(monster_party.get(game, MonsterPartyStatic::monster2_id_index)?);
+            enemy_ids.push(monster_party.get(game, MonsterPartyStatic::monster3_id_index)?);
+            enemy_ids.push(monster_party.get(game, MonsterPartyStatic::monster4_id_index)?);
+            enemy_ids.push(monster_party.get(game, MonsterPartyStatic::monster5_id_index)?);
+            enemy_ids.push(monster_party.get(game, MonsterPartyStatic::monster6_id_index)?);
+            enemy_ids.push(monster_party.get(game, MonsterPartyStatic::monster7_id_index)?);
+            enemy_ids.push(monster_party.get(game, MonsterPartyStatic::monster8_id_index)?);
+            enemy_ids.push(monster_party.get(game, MonsterPartyStatic::monster9_id_index)?);
 
             let monster_data = enemy_data.monster_data.resolve(game)?;
-            for monster_data in monster_data.iter(game) {
-                let Some(monster) = self.monster.read_pointer(game, monster_data.monster) else {
-                    continue;
-                };
 
-                let Some(monster) = monster.values.resolve(game) else {
-                    continue;
-                };
+            let enemies = monster_data
+                .iter(game)
+                .filter_map(|monster_data| {
+                    let monster = self.monster.read_pointer(game, monster_data.monster)?;
+                    let monster = monster.values.resolve(game)?;
 
-                let mut enemy = Enemy {
-                    id: u32::MAX,
-                    level: u32::MAX,
-                    hp: u32::MAX,
-                    exp: u32::MAX,
-                    gil: u32::MAX,
-                    boss: false,
-                };
-                for (idx, value) in monster.iter(game).enumerate() {
-                    let idx = idx as u32;
-                    if idx == mon.id_index {
-                        enemy.id = value;
-                    }
-                    if idx == mon.level_index {
-                        enemy.level = value;
-                    }
-                    if idx == mon.hp_index {
-                        enemy.hp = value;
-                    }
-                    if idx == mon.exp_index {
-                        enemy.exp = value;
-                    }
-                    if idx == mon.gil_index {
-                        enemy.gil = value;
-                    }
-                    if idx == mon.boss_index {
-                        enemy.boss = value != 0;
-                    }
-                }
+                    let enemy = Enemy {
+                        id: monster.get(game, MonsterStatic::id_index)?,
+                        level: monster.get(game, MonsterStatic::level_index)?,
+                        hp: monster.get(game, MonsterStatic::hp_index)?,
+                        exp: monster.get(game, MonsterStatic::exp_index)?,
+                        gil: monster.get(game, MonsterStatic::gil_index)?,
+                        boss: monster.get(game, MonsterStatic::boss_index)? != 0,
+                    };
 
-                enemies.push(enemy);
+                    Some(enemy)
+                })
+                .collect();
+
+            unsafe {
+                addr_of_mut!((*ptr).enemy_ids).write(enemy_ids);
+                addr_of_mut!((*ptr).encounter_enemies).write(enemies);
             }
 
-            Some(BattleInfo {
-                active: manager.active,
-                encounter_id,
-                enemy_ids,
-                enemies,
-            })
+            Some(unsafe { result.assume_init() })
         }
     }
 }

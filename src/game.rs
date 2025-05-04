@@ -4,6 +4,7 @@ use asr::{arrayvec::ArrayVec, watcher::Watcher};
 
 pub struct Game {
     in_battle: Watcher<bool>,
+    battle_playing: Watcher<bool>,
     // loading: Watcher<bool>,
     // cutscene: Watcher<bool>,
     // level: Watcher<Level>,
@@ -38,6 +39,7 @@ impl Game {
     pub fn new() -> Self {
         Self {
             in_battle: Watcher::new(),
+            battle_playing: Watcher::new(),
             // loading: Watcher::new(),
             // cutscene: Watcher::new(),
             // level: Watcher::new(),
@@ -61,17 +63,27 @@ impl Game {
         // self.level_changes(data);
         // self.encounter_changes(data);
         //
-        //
-        //
 
-        if let Some(info) = data.battle_info() {
-            let in_battle = self.in_battle.update_infallible(info.active);
-            if in_battle.changed_to(&true) {
-                log!("Battle started, encounter: {:?}", info);
+        let Some(info) = data.battle_info() else {
+            return;
+        };
+        if self.in_battle.pair.is_none() {
+            log!("Current Encounter: {:?}", info);
+        }
+
+        let in_battle = self.in_battle.update_infallible(data.battle_active());
+        if in_battle.changed_to(&true) {
+            self.battle_playing.update_infallible(info.playing);
+            log!("Battle started, encounter: {:?}", info);
+        } else if in_battle.changed_to(&false) {
+            let playing = self.battle_playing.update_infallible(info.playing);
+            if playing.changed_to(&false) {
+                log!("Battle reset detected, no split!");
+                return;
             }
-            if in_battle.changed_to(&false) {
-                log!("Battle ended, encounter: {:?}", info);
-            }
+            log!("Battle ended, encounter: {:?}", info);
+        } else if in_battle.current {
+            self.battle_playing.update_infallible(info.playing);
         }
     }
 
