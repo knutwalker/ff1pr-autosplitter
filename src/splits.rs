@@ -37,12 +37,12 @@ impl Progress {
         self.actions.drain(..)
     }
 
-    pub fn not_running(&mut self, data: &mut Data<'_>) {
-        #[cfg(debugger)]
-        self.debug.check_progression(data);
-
-        self.game.not_running(data);
-    }
+    // pub fn not_running(&mut self, data: &mut Data<'_>) {
+    //     #[cfg(debugger)]
+    //     self.debug.check_progression(data);
+    //
+    //     self.game.not_running(data);
+    // }
 
     pub fn running(&mut self, data: &mut Data<'_>) {
         // #[cfg(debugger)]
@@ -304,176 +304,176 @@ impl DebugProgress {
         }
     }
 
-    fn check_progression(
-        &mut self,
-        data: &mut Data<'_>,
-    ) -> Option<(bool, Option<crate::data::Level>)> {
-        if let Some(progress) = data.progress() {
-            let play_time = self.play_time.update_infallible(progress.play_time());
-            if play_time.changed() {
-                log!(
-                    "this session={}, total={}",
-                    play_time.current.session,
-                    play_time.current.total
-                );
-                timer::set_game_time(play_time.current.total);
-            }
-
-            let first = self.activity.pair.is_none();
-            let activity = self.activity.update_infallible(progress.activity());
-            if first || activity.changed() {
-                // log!("{:?}", activity.current);
-                timer::set_variable("activity", &activity.current.name);
-                timer::set_variable("activity_id", activity.current.id.as_str());
-            }
-
-            // let first = self.previous_level.pair.is_none();
-            // let level = self.previous_level.update_infallible(progress.prev_level());
-            // if first || level.changed() {
-            //     log!("Previous {:?}", level.current);
-            // }
-
-            let first = self.current_level.pair.is_none();
-            let level = self
-                .current_level
-                .update_infallible(progress.current_level());
-            if first || level.changed() {
-                // log!("Current {:?}", level.current);
-                timer::set_variable("level", &level.name);
-                timer::set_variable("level_id", level.id.as_str());
-            }
-
-            // let in_cutscene = self.in_cutscene.update_infallible(progress.is_in_cutscene);
-            // if in_cutscene.changed_from_to(&false, &true) {
-            //     log!("Cutscene started");
-            // } else if in_cutscene.changed_from_to(&true, &false) {
-            //     log!("Cutscene stopped");
-            // }
-
-            Some((progress.is_loading, progress.level))
-        } else {
-            None
-        }
-    }
-
-    fn log_enemies(&mut self, data: &mut Data<'_>) {
-        if data.encounter().is_some() {
-            if let Some(encounter) = data.deep_resolve_encounter() {
-                let mut enc = Encounter::default();
-                let mut nmy = DebugEnemy::default();
-                for enemy in encounter.enemies() {
-                    match enemy {
-                        EnemyEncounter::General(encounter) => {
-                            enc.boss = encounter.boss;
-                            enc.achievement = encounter.has_achievement;
-                            nmy.encounter = enc;
-                        }
-                        EnemyEncounter::Enemy(enemy) => {
-                            nmy.id = enemy.id.to_owned();
-                            nmy.name = enemy.name.to_owned();
-                            nmy.enemey = enemy.enemy;
-                        }
-                        EnemyEncounter::EnemyStats(enemy) => {
-                            nmy.hp = enemy.max_hp as _;
-                            nmy.level = enemy.level as _;
-                            nmy.at = enemy.attack as _;
-                            nmy.mat = enemy.magic_attack as _;
-                            nmy.de = enemy.defense as _;
-                            nmy.mde = enemy.magic_defense as _;
-                        }
-                        EnemyEncounter::EnemyMods(enemy) => {
-                            nmy.dmg = format!("{:?}", EnemyEncounter::EnemyMods(enemy))
-                                .trim_start_matches("|--mods: ")
-                                .to_owned();
-                            let enemy = std::mem::take(&mut nmy);
-                            nmy.encounter = enc;
-                            if !self.seen_enemies.contains(&enemy) {
-                                log!("{:?}", enemy);
-                                self.seen_enemies.insert(enemy);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    fn log_encounter_data(&mut self, data: &mut Data<'_>) -> Option<()> {
-        if self.in_encounter {
-            match data.encounter() {
-                Some(enc) if enc.done => {
-                    self.in_encounter = false;
-                    return Some(());
-                }
-                Some(_) =>
-                {
-                    #[cfg(debugger)]
-                    self.dump_current_hp_levels(data)
-                }
-                None => {
-                    self.in_encounter = false;
-                }
-            }
-        } else {
-            match data.encounter() {
-                Some(enc) if !enc.done => {
-                    self.in_encounter = true;
-                }
-                _ => {}
-            }
-        }
-        Some(())
-    }
-
-    fn dump_current_hp_levels(&mut self, data: &mut Data<'_>) {
-        const KEYS: [(&str, &str, &str); 6] = [
-            ("enemy_1", "enemy_1_id", "enemy_1_hp"),
-            ("enemy_2", "enemy_2_id", "enemy_2_hp"),
-            ("enemy_3", "enemy_3_id", "enemy_3_hp"),
-            ("enemy_4", "enemy_4_id", "enemy_4_hp"),
-            ("enemy_5", "enemy_5_id", "enemy_5_hp"),
-            ("enemy_6", "enemy_6_id", "enemy_6_hp"),
-        ];
-
-        #[derive(Copy, Clone, Debug, Default)]
-        struct Data<'a> {
-            id: &'a str,
-            name: &'a str,
-            hp: u32,
-        }
-
-        if let Some(enc) = data.deep_resolve_encounter() {
-            for (e, (name_key, id_key, hp_key)) in enc
-                .enemies()
-                .scan(Data::default(), |acc, e| {
-                    Some(match e {
-                        EnemyEncounter::Enemy(e) => {
-                            acc.id = e.id;
-                            acc.name = e.name;
-                            None
-                        }
-                        EnemyEncounter::EnemyStats(e) => {
-                            acc.hp = e.current_hp;
-                            Some(core::mem::take(acc))
-                        }
-                        _ => None,
-                    })
-                })
-                .flatten()
-                .map(Some)
-                .chain(core::iter::repeat(None))
-                .zip(KEYS)
-            {
-                let name = e.map_or("", |o| o.name);
-                let id = e.map_or("", |o| o.id);
-                let hp = e.map_or(0, |o| o.hp);
-
-                timer::set_variable(name_key, name);
-                timer::set_variable(id_key, id);
-                timer::set_variable_int(hp_key, hp);
-            }
-        }
-    }
+    // fn check_progression(
+    //     &mut self,
+    //     data: &mut Data<'_>,
+    // ) -> Option<(bool, Option<crate::data::Level>)> {
+    //     if let Some(progress) = data.progress() {
+    //         let play_time = self.play_time.update_infallible(progress.play_time());
+    //         if play_time.changed() {
+    //             log!(
+    //                 "this session={}, total={}",
+    //                 play_time.current.session,
+    //                 play_time.current.total
+    //             );
+    //             timer::set_game_time(play_time.current.total);
+    //         }
+    //
+    //         let first = self.activity.pair.is_none();
+    //         let activity = self.activity.update_infallible(progress.activity());
+    //         if first || activity.changed() {
+    //             // log!("{:?}", activity.current);
+    //             timer::set_variable("activity", &activity.current.name);
+    //             timer::set_variable("activity_id", activity.current.id.as_str());
+    //         }
+    //
+    //         // let first = self.previous_level.pair.is_none();
+    //         // let level = self.previous_level.update_infallible(progress.prev_level());
+    //         // if first || level.changed() {
+    //         //     log!("Previous {:?}", level.current);
+    //         // }
+    //
+    //         let first = self.current_level.pair.is_none();
+    //         let level = self
+    //             .current_level
+    //             .update_infallible(progress.current_level());
+    //         if first || level.changed() {
+    //             // log!("Current {:?}", level.current);
+    //             timer::set_variable("level", &level.name);
+    //             timer::set_variable("level_id", level.id.as_str());
+    //         }
+    //
+    //         // let in_cutscene = self.in_cutscene.update_infallible(progress.is_in_cutscene);
+    //         // if in_cutscene.changed_from_to(&false, &true) {
+    //         //     log!("Cutscene started");
+    //         // } else if in_cutscene.changed_from_to(&true, &false) {
+    //         //     log!("Cutscene stopped");
+    //         // }
+    //
+    //         Some((progress.is_loading, progress.level))
+    //     } else {
+    //         None
+    //     }
+    // }
+    //
+    // fn log_enemies(&mut self, data: &mut Data<'_>) {
+    //     if data.encounter().is_some() {
+    //         if let Some(encounter) = data.deep_resolve_encounter() {
+    //             let mut enc = Encounter::default();
+    //             let mut nmy = DebugEnemy::default();
+    //             for enemy in encounter.enemies() {
+    //                 match enemy {
+    //                     EnemyEncounter::General(encounter) => {
+    //                         enc.boss = encounter.boss;
+    //                         enc.achievement = encounter.has_achievement;
+    //                         nmy.encounter = enc;
+    //                     }
+    //                     EnemyEncounter::Enemy(enemy) => {
+    //                         nmy.id = enemy.id.to_owned();
+    //                         nmy.name = enemy.name.to_owned();
+    //                         nmy.enemey = enemy.enemy;
+    //                     }
+    //                     EnemyEncounter::EnemyStats(enemy) => {
+    //                         nmy.hp = enemy.max_hp as _;
+    //                         nmy.level = enemy.level as _;
+    //                         nmy.at = enemy.attack as _;
+    //                         nmy.mat = enemy.magic_attack as _;
+    //                         nmy.de = enemy.defense as _;
+    //                         nmy.mde = enemy.magic_defense as _;
+    //                     }
+    //                     EnemyEncounter::EnemyMods(enemy) => {
+    //                         nmy.dmg = format!("{:?}", EnemyEncounter::EnemyMods(enemy))
+    //                             .trim_start_matches("|--mods: ")
+    //                             .to_owned();
+    //                         let enemy = std::mem::take(&mut nmy);
+    //                         nmy.encounter = enc;
+    //                         if !self.seen_enemies.contains(&enemy) {
+    //                             log!("{:?}", enemy);
+    //                             self.seen_enemies.insert(enemy);
+    //                         }
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
+    //
+    // fn log_encounter_data(&mut self, data: &mut Data<'_>) -> Option<()> {
+    //     if self.in_encounter {
+    //         match data.encounter() {
+    //             Some(enc) if enc.done => {
+    //                 self.in_encounter = false;
+    //                 return Some(());
+    //             }
+    //             Some(_) =>
+    //             {
+    //                 #[cfg(debugger)]
+    //                 self.dump_current_hp_levels(data)
+    //             }
+    //             None => {
+    //                 self.in_encounter = false;
+    //             }
+    //         }
+    //     } else {
+    //         match data.encounter() {
+    //             Some(enc) if !enc.done => {
+    //                 self.in_encounter = true;
+    //             }
+    //             _ => {}
+    //         }
+    //     }
+    //     Some(())
+    // }
+    //
+    // fn dump_current_hp_levels(&mut self, data: &mut Data<'_>) {
+    //     const KEYS: [(&str, &str, &str); 6] = [
+    //         ("enemy_1", "enemy_1_id", "enemy_1_hp"),
+    //         ("enemy_2", "enemy_2_id", "enemy_2_hp"),
+    //         ("enemy_3", "enemy_3_id", "enemy_3_hp"),
+    //         ("enemy_4", "enemy_4_id", "enemy_4_hp"),
+    //         ("enemy_5", "enemy_5_id", "enemy_5_hp"),
+    //         ("enemy_6", "enemy_6_id", "enemy_6_hp"),
+    //     ];
+    //
+    //     #[derive(Copy, Clone, Debug, Default)]
+    //     struct Data<'a> {
+    //         id: &'a str,
+    //         name: &'a str,
+    //         hp: u32,
+    //     }
+    //
+    //     if let Some(enc) = data.deep_resolve_encounter() {
+    //         for (e, (name_key, id_key, hp_key)) in enc
+    //             .enemies()
+    //             .scan(Data::default(), |acc, e| {
+    //                 Some(match e {
+    //                     EnemyEncounter::Enemy(e) => {
+    //                         acc.id = e.id;
+    //                         acc.name = e.name;
+    //                         None
+    //                     }
+    //                     EnemyEncounter::EnemyStats(e) => {
+    //                         acc.hp = e.current_hp;
+    //                         Some(core::mem::take(acc))
+    //                     }
+    //                     _ => None,
+    //                 })
+    //             })
+    //             .flatten()
+    //             .map(Some)
+    //             .chain(core::iter::repeat(None))
+    //             .zip(KEYS)
+    //         {
+    //             let name = e.map_or("", |o| o.name);
+    //             let id = e.map_or("", |o| o.id);
+    //             let hp = e.map_or(0, |o| o.hp);
+    //
+    //             timer::set_variable(name_key, name);
+    //             timer::set_variable(id_key, id);
+    //             timer::set_variable_int(hp_key, hp);
+    //         }
+    //     }
+    // }
 }
 
 #[derive(Clone, Default, Eq)]

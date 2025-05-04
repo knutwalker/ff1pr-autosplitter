@@ -2190,22 +2190,22 @@ mod loc {
                 })
                 .collect::<HashMap<_, _>>();
 
-            let process = super::Proc(process);
-
-            for (k, v) in self.strings.iter() {
-                log!("--- {k} ---");
-                log!("id, name");
-                if let Some(cat) = categories.get(k) {
-                    for (idx, name) in v.strings.iter(process).enumerate() {
-                        let name = name
-                            .resolve(process)
-                            .map(|o| o.to_std_string(process))
-                            .unwrap_or_default();
-                        let id = cat.get(&idx).map(|o| &**o).unwrap_or_default();
-                        log!("{id}, {name}");
-                    }
-                }
-            }
+            // let process = super::Proc(process);
+            //
+            // for (k, v) in self.strings.iter() {
+            //     log!("--- {k} ---");
+            //     log!("id, name");
+            //     if let Some(cat) = categories.get(k) {
+            //         for (idx, name) in v.strings.iter(process).enumerate() {
+            //             let name = name
+            //                 .resolve(process)
+            //                 .map(|o| o.to_std_string(process))
+            //                 .unwrap_or_default();
+            //             let id = cat.get(&idx).map(|o| &**o).unwrap_or_default();
+            //             log!("{id}, {name}");
+            //         }
+            //     }
+            // }
         }
     }
 }
