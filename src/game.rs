@@ -5,6 +5,7 @@ use asr::{arrayvec::ArrayVec, watcher::Watcher};
 pub struct Game {
     in_battle: Watcher<bool>,
     battle_playing: Watcher<bool>,
+    judgement: Watcher<bool>,
     inventory: Watcher<Inventory>,
     // loading: Watcher<bool>,
     // cutscene: Watcher<bool>,
@@ -42,6 +43,7 @@ impl Game {
             in_battle: Watcher::new(),
             battle_playing: Watcher::new(),
             inventory: Watcher::new(),
+            judgement: Watcher::new(),
             // loading: Watcher::new(),
             // cutscene: Watcher::new(),
             // level: Watcher::new(),
@@ -73,19 +75,27 @@ impl Game {
             log!("Current Encounter: {:?}", info);
         }
 
+        let playing = self.battle_playing.update_infallible(info.playing);
+        let judgement = self.judgement.update_infallible(info.end_enabled);
+
         let in_battle = self.in_battle.update_infallible(data.battle_active());
         if in_battle.changed_to(&true) {
-            self.battle_playing.update_infallible(info.playing);
             log!("Battle started, encounter: {:?}", info);
         } else if in_battle.changed_to(&false) {
-            let playing = self.battle_playing.update_infallible(info.playing);
             if playing.changed_to(&false) {
                 log!("Battle reset detected, no split!");
                 return;
             }
             log!("Battle ended, encounter: {:?}", info);
+            log!("Current scene: {:?}", data.current_scene());
         } else if in_battle.current {
-            self.battle_playing.update_infallible(info.playing);
+            if playing.changed_to(&false) {
+                log!("Battle WON, it seems (or lost, I guess): {:?}", info);
+            }
+
+            if judgement.changed_to(&true) {
+                log!("Did we beat CHAOS just now?: {:?}", info);
+            }
         }
 
         if let Some(inventory) = data.inventory() {

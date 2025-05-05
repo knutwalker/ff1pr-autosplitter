@@ -520,6 +520,7 @@ impl<'a> Data<'a> {
         Self {
             game,
             battles: ff1::Battles::new(),
+            items: ff1::Items::new(),
             // title_screen: TitleScreen::new(),
             // combat: Combat::new(),
             // progression: Progression::new(),
@@ -734,11 +735,10 @@ mod ff1 {
     #[derive(Class2, Debug)]
     struct UserDataManager {
         #[singleton]
-        #[singleton]
         #[rename = "instance"]
         _instance: Pointer<Self>,
 
-        #[rename = "importantOwnedItems"]
+        #[rename = "importantOwendItems"]
         key_items: Pointer<Map<u32, Pointer<OwnedItemData>>>,
 
         #[rename = "<OwnedTransportationList>k__BackingField"]
@@ -1012,25 +1012,25 @@ mod ff1 {
     }
 
     #[derive(Clone, Debug, PartialEq, Eq)]
-    struct KeyItem {
-        dict_id: u32,
-        item_id: u32,
-        master_id: u32,
-        list_id: u32,
-        type_id: u32,
-        system_id: u32,
-        content_id: u32,
-        count: u32,
+    pub struct KeyItem {
+        pub dict_id: u32,
+        pub item_id: u32,
+        pub master_id: u32,
+        pub list_id: u32,
+        pub type_id: u32,
+        pub system_id: u32,
+        pub content_id: u32,
+        pub count: u32,
     }
 
     #[derive(Clone, Debug, PartialEq, Eq)]
-    struct Vehicle {
-        id: u32,
-        map_id: u32,
-        enable: bool,
+    pub struct Vehicle {
+        pub id: u32,
+        pub map_id: u32,
+        pub enable: bool,
     }
 
-    struct Items {
+    pub struct Items {
         user_data: UserDataManagerBinding,
         item_data: OwnedItemDataBinding,
         transport_data: OwnedTransportationDataBinding,
@@ -1105,8 +1105,8 @@ mod ff1 {
                 .collect();
 
             Some(Inventory {
-                key_items,
-                vehicles,
+                key_items: key_items,
+                vehicles: vehicles,
             })
         }
     }
