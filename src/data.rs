@@ -19,7 +19,10 @@ pub use self::{
 };
 
 pub use self::{
-    combat::CurrentEncounter, ff1::Inventory, inventory::Change, title_screen::GameStart,
+    combat::CurrentEncounter,
+    ff1::{BattleResult, Inventory},
+    inventory::Change,
+    title_screen::GameStart,
 };
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -862,11 +865,11 @@ mod ff1 {
         instantiate: InstantiateManagerBinding,
         judgement: BattleEndJudgmentBinding,
         enemy_instance: BattleEnemyInstanceDataBinding,
-        status_control: BattleStatusControlBinding,
-        control_info: BattleStatusControlInfoBinding,
-        enemy_data: BattleEnemyDataBinding,
-        unit_data: BattleUnitDataInfoBinding,
-        parameter: CharacterParameterBaseBinding,
+        // status_control: BattleStatusControlBinding,
+        // control_info: BattleStatusControlInfoBinding,
+        // enemy_data: BattleEnemyDataBinding,
+        // unit_data: BattleUnitDataInfoBinding,
+        // parameter: CharacterParameterBaseBinding,
         event_command: EventCommandBinding,
         monster_party: MonsterPartyBinding,
         monster: MonsterBinding,
@@ -879,11 +882,11 @@ mod ff1 {
                 instantiate: InstantiateManager::bind(),
                 judgement: BattleEndJudgment::bind(),
                 enemy_instance: BattleEnemyInstanceData::bind(),
-                status_control: BattleStatusControl::bind(),
-                control_info: BattleStatusControlInfo::bind(),
-                enemy_data: BattleEnemyData::bind(),
-                unit_data: BattleUnitDataInfo::bind(),
-                parameter: CharacterParameterBase::bind(),
+                // status_control: BattleStatusControl::bind(),
+                // control_info: BattleStatusControlInfo::bind(),
+                // enemy_data: BattleEnemyData::bind(),
+                // unit_data: BattleUnitDataInfo::bind(),
+                // parameter: CharacterParameterBase::bind(),
                 event_command: EventCommand::bind(),
                 monster_party: MonsterParty::bind(),
                 monster: Monster::bind(),

@@ -31,6 +31,7 @@ bytemuck = { version = "1", features = ["derive", "min_const_generics"] }
 csharp-mem = { git = "https://github.com/knutwalker/csharp-mem", features = [
     "alloc",
 ] }
+num_enum = { version = "0.7.3", default-features = false }
 pin-project-lite = "0.2.13"
 
 [lib]
@@ -44,3 +45,9 @@ strip = true
 
 [profile.release.build-override]
 opt-level = 0
+
+[lints.clippy]
+bool-comparison = "allow"
+collapsible-if = "allow"
+needless-return = "allow"
+manual-div-ceil = "allow"

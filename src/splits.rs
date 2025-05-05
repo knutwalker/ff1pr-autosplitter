@@ -4,21 +4,28 @@ use std::num::NonZeroU32;
 use crate::data::{Activity, EnemyEncounter, LevelData, PlayTime};
 use crate::{
     data::Data,
-    game::{Enemy, Event, Game, KeyItem, Level},
+    game::{Enemy, Event, Game, KeyItem, Level, Monster, SplitOn},
 };
-use crate::{Action, Split};
 #[cfg(debugger)]
 use ahash::{HashSet, HashSetExt};
 use asr::{arrayvec::ArrayVec, msg};
 #[cfg(debugger)]
 use asr::{timer, watcher::Watcher};
 
+#[derive(Copy, Clone, Debug)]
+pub enum Action {
+    Start,
+    Split(SplitOn),
+    Pause,
+    Resume,
+    GamePause,
+    GameResume,
+}
+
 pub struct Progress {
     game: Game,
     actions: ArrayVec<Action, 4>,
-    cutscenes: Delayed,
-    #[cfg(debugger)]
-    debug: DebugProgress,
+    chaos: Delayed,
 }
 
 impl Progress {
@@ -26,47 +33,27 @@ impl Progress {
         Self {
             game: Game::new(),
             actions: ArrayVec::new(),
-            cutscenes: Delayed::default(),
-            #[cfg(debugger)]
-            debug: DebugProgress::new(),
+            chaos: Delayed::default(),
         }
     }
 
     pub(crate) fn actions(&mut self) -> impl Iterator<Item = Action> + '_ {
-        self.handle_events();
+        // self.handle_events();
         self.actions.drain(..)
     }
 
-    // pub fn not_running(&mut self, data: &mut Data<'_>) {
-    //     #[cfg(debugger)]
-    //     self.debug.check_progression(data);
-    //
-    //     self.game.not_running(data);
-    // }
-
     pub fn running(&mut self, data: &mut Data<'_>) {
-        // #[cfg(debugger)]
-        // self.debug.check_progression(data);
-        //
-        // // #[cfg(debugger)]
-        // // for item in data.check_for_changed_key_items() {
-        // //     match item {
-        // //         crate::data::Change::PickedUp(item) => {
-        // //             log!("picked up a new key item: {} ({})", item.name, item.id);
-        // //         }
-        // //         crate::data::Change::Lost(item) => {
-        // //             log!("lost a key item: {} ({})", item.name, item.id);
-        // //         }
-        // //     }
-        // // }
-        //
-        // #[cfg(debugger)]
-        // self.debug.log_enemies(data);
-        //
-        // #[cfg(debugger)]
-        // self.debug.log_encounter_data(data);
+        if let Some(action) = self.chaos.tick() {
+            self.actions.push(action);
+        }
 
-        self.game.running(data);
+        if let Some(event) = self.game.running(data, false) {
+            if matches!(event, SplitOn::Monster(Monster::Chaos)) {
+                self.chaos.set(60, Action::Split(event));
+            } else {
+                self.actions.push(Action::Split(event));
+            }
+        }
     }
 
     fn handle_events(&mut self) {
