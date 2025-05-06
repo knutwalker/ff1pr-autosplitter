@@ -81,20 +81,20 @@ async fn main() {
                                 continue 'outer;
                             }
                         }
-                        State::Running(ref mut data, ref mut progress) => {
-                            match timer::state() {
-                                TimerState::NotRunning => {
-                                    state = State::NotRunning;
-                                    continue 'outer;
+                        State::Running(ref mut data, ref mut progress) => match timer::state() {
+                            TimerState::NotRunning => {
+                                state = State::NotRunning;
+                                continue 'outer;
+                            }
+                            TimerState::Running => {
+                                if let Some(action) =
+                                    progress.running(data, settings.split_on_death_animation)
+                                {
+                                    act(action, &settings);
                                 }
-                                TimerState::Running => progress.running(data),
-                                _ => {}
                             }
-
-                            for action in progress.actions() {
-                                act(action, &settings);
-                            }
-                        }
+                            _ => {}
+                        },
                     }
 
                     next_tick().await;
@@ -249,9 +249,7 @@ pub struct Settings {
 
 impl Settings {
     fn filter(&self, action: &Action) -> bool {
-        let Action::Split(s) = action else {
-            return false;
-        };
+        let Action::Split(s) = action;
         return match s {
             SplitOn::Monster(Monster::Garland) => self.garland,
             SplitOn::Monster(Monster::Pirates) => self.pirates,
@@ -293,25 +291,8 @@ impl Settings {
 
 fn act(action: Action, settings: &Settings) {
     if settings.filter(&action) {
-        log!("Decided on an action: {action:?}");
-        match action {
-            Action::Start => {
-                log!("Starting timer");
-                timer::start();
-            }
-            Action::Split(split) => {
-                log!("Splitting: {split:?}");
-                timer::split();
-            }
-            Action::Pause => {
-                log!("Pause game time");
-                timer::pause_game_time();
-            }
-            Action::Resume => {
-                log!("Resume game time");
-                timer::resume_game_time();
-            }
-            _ => {}
-        }
+        let Action::Split(split) = action;
+        log!("Splitting: {split:?}");
+        timer::split();
     }
 }
