@@ -2,56 +2,6 @@ use crate::data::{BattleResult, Data};
 use asr::watcher::Watcher;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum SplitOn {
-    Monster(Monster),
-    Pickup(Pickup),
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, IntoPrimitive, TryFromPrimitive)]
-#[repr(u32)]
-pub enum Monster {
-    Garland = 350,
-    Pirates = 349,
-    Piscodemons = 88,
-    Astos = 348,
-    Vampire = 347,
-    Lich = 345,
-    EvilEye = 312,
-    Kraken = 343,
-    BlueDragon = 239,
-    Tiamat = 342,
-    Marilith = 344,
-    DeathEye = 197,
-    Lich2 = 338,
-    Marilith2 = 339,
-    Kraken2 = 340,
-    Tiamat2 = 341,
-    Chaos = 346,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive)]
-#[repr(u32)]
-pub enum Pickup {
-    Lute = 44,
-    Ship = 4,
-    Crown = 45,
-    CrystalEye = 46,
-    Tonic = 47,
-    MysticKey = 48,
-    Nitro = 49,
-    StarRuby = 52,
-    EarthRod = 53,
-    Canoe = 60,
-    LeviStone = 54,
-    AirShip = 3,
-    WarpCube = 57,
-    BottledFaerie = 58,
-    Oxyale = 59,
-    RosettaStone = 51,
-    Chime = 55,
-}
-
 pub struct Game {
     in_battle: Watcher<bool>,
     battle_playing: Watcher<bool>,
