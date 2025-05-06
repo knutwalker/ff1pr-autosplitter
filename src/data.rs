@@ -1,29 +1,28 @@
 use asr::{
     arrayvec::ArrayVec,
-    game_engine::unity::il2cpp::{Class2, Game, Module},
-    Pointer, Process,
+    game_engine::unity::il2cpp::{Class2, Game},
+    Pointer,
 };
 
 use csharp_mem::{Array, List, Map};
 use num_enum::FromPrimitive;
 
-pub struct Data<'a> {
-    game: Game<'a>,
+pub struct Data {
     battles: Battles,
     items: Items,
 }
 
-impl Data<'_> {
-    pub fn battle_active(&mut self) -> bool {
-        self.battles.active(&self.game)
+impl Data {
+    pub fn battle_active(&mut self, game: &Game) -> bool {
+        self.battles.active(game)
     }
 
-    pub fn battle_info(&mut self) -> Option<BattleInfo> {
-        self.battles.info(&self.game)
+    pub fn battle_info(&mut self, game: &Game) -> Option<BattleInfo> {
+        self.battles.info(game)
     }
 
-    pub fn inventory(&mut self) -> Option<Inventory> {
-        self.items.inventory(&self.game)
+    pub fn inventory(&mut self, game: &Game) -> Option<Inventory> {
+        self.items.inventory(game)
     }
 }
 
@@ -40,15 +39,9 @@ pub struct Inventory {
     pub vehicles: ArrayVec<u32, 4>,
 }
 
-impl<'a> Data<'a> {
-    pub async fn new(process: &'a Process) -> Data<'a> {
-        let module = Module::wait_attach_auto_detect(process).await;
-        let image = module.wait_get_default_image(process).await;
-        log!("Attached to the game");
-        let game = Game::new(process, module, image);
-
+impl Data {
+    pub fn new() -> Self {
         Self {
-            game,
             battles: Battles::new(),
             items: Items::new(),
         }
@@ -149,7 +142,7 @@ struct SaveTransportationData {
     map_id: i32,
 }
 
-pub struct Battles {
+struct Battles {
     manager: BattlePlugManagerBinding,
     instantiate: InstantiateManagerBinding,
     judgement: BattleEndJugmentBinding,
@@ -159,7 +152,7 @@ pub struct Battles {
 }
 
 impl Battles {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             manager: BattlePlugManager::bind(),
             instantiate: InstantiateManager::bind(),
@@ -170,14 +163,14 @@ impl Battles {
         }
     }
 
-    pub fn active(&mut self, game: &Game<'_>) -> bool {
+    fn active(&mut self, game: &Game<'_>) -> bool {
         self.manager
             .read(game)
             .map(|m| m.active)
             .unwrap_or_default()
     }
 
-    pub fn info(&mut self, game: &Game<'_>) -> Option<BattleInfo> {
+    fn info(&mut self, game: &Game<'_>) -> Option<BattleInfo> {
         let manager = self.manager.read(game)?;
 
         let instantiate = self
@@ -212,7 +205,7 @@ impl Battles {
     }
 }
 
-pub struct Items {
+struct Items {
     user_data: UserDataManagerBinding,
     item_data: OwnedItemDataBinding,
     transport_data: OwnedTransportationDataBinding,
@@ -220,7 +213,7 @@ pub struct Items {
 }
 
 impl Items {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             user_data: UserDataManager::bind(),
             item_data: OwnedItemData::bind(),
@@ -229,7 +222,7 @@ impl Items {
         }
     }
 
-    pub fn inventory(&mut self, game: &Game<'_>) -> Option<Inventory> {
+    fn inventory(&mut self, game: &Game<'_>) -> Option<Inventory> {
         let manager = self.user_data.read(game)?;
 
         let key_items = manager.key_items.resolve(game)?;

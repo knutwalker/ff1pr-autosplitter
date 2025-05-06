@@ -3,6 +3,7 @@ use std::num::NonZeroU32;
 use crate::data::{BattleResult, Data};
 use asr::{
     future::next_tick,
+    game_engine::unity::il2cpp::{Game, Module},
     timer::{self, TimerState},
     watcher::Watcher,
     Process,
@@ -51,13 +52,13 @@ macro_rules! dbg {
 }
 
 mod data;
-mod game;
 
 asr::async_main!(stable);
 
-enum State<'a> {
+#[allow(clippy::large_enum_variant)]
+enum State {
     NotRunning,
-    Running(Data<'a>, Splits),
+    Running(Data, Splits),
 }
 
 async fn main() {
@@ -70,13 +71,18 @@ async fn main() {
         log!("attached to process");
         process
             .until_closes(async {
+                let module = Module::wait_attach_auto_detect(&process).await;
+                let image = module.wait_get_default_image(&process).await;
+                log!("Attached to the game");
+                let game = Game::new(&process, module, image);
+
                 let mut state = State::NotRunning;
 
                 'outer: loop {
                     match state {
                         State::NotRunning => {
                             if timer::state() == TimerState::Running {
-                                state = State::Running(Data::new(&process).await, Splits::new());
+                                state = State::Running(Data::new(), Splits::new());
                                 continue 'outer;
                             }
                         }
@@ -87,7 +93,7 @@ async fn main() {
                             }
                             TimerState::Running => {
                                 if let Some(split) = splits
-                                    .check(data, settings.split_on_death_animation)
+                                    .check(data, &game, settings.split_on_death_animation)
                                     .filter(|s| settings.filter(*s))
                                 {
                                     log!("Splitting: {split:?}");
@@ -376,12 +382,12 @@ impl Splits {
         }
     }
 
-    fn check(&mut self, data: &mut Data<'_>, early: bool) -> Option<SplitOn> {
+    fn check(&mut self, data: &mut Data, game: &Game, early: bool) -> Option<SplitOn> {
         if self.chaos.tick() {
             return Some(SplitOn::Monster(Monster::Chaos));
         }
 
-        if let Some(mon) = self.battle_check(data, early) {
+        if let Some(mon) = self.battle_check(data, game, early) {
             if mon == Monster::Chaos {
                 self.chaos.set(60);
                 return None;
@@ -389,7 +395,7 @@ impl Splits {
             return Some(SplitOn::Monster(mon));
         }
 
-        if let Some(item) = self.inventory_check(data) {
+        if let Some(item) = self.inventory_check(data, game) {
             return Some(SplitOn::Pickup(item));
         }
 
@@ -401,13 +407,13 @@ impl Splits {
     // [ ] move to class iinstead of class2
     // [ ] move to default asr, latest
 
-    fn battle_check(&mut self, data: &mut Data<'_>, early: bool) -> Option<Monster> {
-        let in_battle = self.in_battle.update_infallible(data.battle_active());
+    fn battle_check(&mut self, data: &mut Data, game: &Game, early: bool) -> Option<Monster> {
+        let in_battle = self.in_battle.update_infallible(data.battle_active(game));
         if in_battle.current == false && in_battle.unchanged() {
             return None;
         }
 
-        let info = data.battle_info()?;
+        let info = data.battle_info(game)?;
 
         let playing = self.battle_playing.update_infallible(info.playing);
 
@@ -445,8 +451,8 @@ impl Splits {
         return None;
     }
 
-    fn inventory_check(&mut self, data: &mut Data<'_>) -> Option<Pickup> {
-        if let Some(inventory) = data.inventory() {
+    fn inventory_check(&mut self, data: &mut Data, game: &Game) -> Option<Pickup> {
+        if let Some(inventory) = data.inventory(game) {
             for item in inventory
                 .key_items
                 .iter()
