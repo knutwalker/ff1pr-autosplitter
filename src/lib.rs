@@ -127,9 +127,6 @@ pub enum BattleSplit {
 
 #[derive(Gui)]
 pub struct Settings {
-    /// Boss related splits.
-    _bosses: Title,
-
     /// When to split on battles.
     battle_split: BattleSplit,
 
@@ -137,33 +134,101 @@ pub struct Settings {
     #[default = true]
     garland: bool,
 
+    /// Split when obtaining the lute
+    #[default = false]
+    lute: bool,
+
     /// Split when defating the Pirates
     #[default = false]
     pirates: bool,
+
+    /// Split when obtaining the ship
+    #[default = true]
+    ship: bool,
 
     /// Split when defeating Piscodemons
     #[default = false]
     piscodemons: bool,
 
+    /// Split when obtaining the crown
+    #[default = true]
+    crown: bool,
+
     /// Split when defeating Astos
     #[default = true]
     astos: bool,
+
+    /// Split when obtaining the Crystal Eye
+    #[default = false]
+    crystal_eye: bool,
+
+    /// Split when obtaining the Tonic
+    #[default = true]
+    tonic: bool,
+
+    /// Split when obtaining the Mystic Key
+    #[default = true]
+    mystic_key: bool,
+
+    /// Split when obtaining the Nitro
+    #[default = true]
+    nitro: bool,
 
     /// Split when defeating Vampire
     #[default = true]
     vampire: bool,
 
+    /// Split when obtaining the Star Ruby
+    #[default = false]
+    star_ruby: bool,
+
+    /// Split when obtaining the Earth Rod
+    #[default = true]
+    earth_rod: bool,
+
     /// Split when defeating Lich
     #[default = true]
     lich: bool,
+
+    /// Split when obtaining the Canoe
+    #[default = true]
+    canoe: bool,
 
     /// Split when defeating Evil Eye
     #[default = false]
     evil_eye: bool,
 
+    /// Split when obtaining the Levi Stone
+    #[default = true]
+    levi_stone: bool,
+
+    /// Split when obtaining the Air Ship
+    #[default = false]
+    air_ship: bool,
+
+    /// Split when obtaining the Warp Cube
+    #[default = true]
+    warp_cube: bool,
+
+    /// Split when obtaining the Bottled Faerie
+    #[default = false]
+    bottled_faerie: bool,
+
+    /// Split when obtaining the Oxyale
+    #[default = true]
+    oxyale: bool,
+
+    /// Split when obtaining the Rosetta Stone
+    #[default = true]
+    rosetta_stone: bool,
+
     /// Split when defeating Kraken
     #[default = true]
     kraken: bool,
+
+    /// Split when obtaining the Chime
+    #[default = true]
+    chime: bool,
 
     /// Split when defeating Blue Dragon
     #[default = false]
@@ -200,79 +265,6 @@ pub struct Settings {
     /// Split when defeating Chaos
     #[default = true]
     chaos: bool,
-
-    /// Item related splits.
-    ///
-    /// Splits happen when the "recieved" dialog box vanishes.
-    _items: Title,
-
-    /// Split when obtaining the lute
-    #[default = false]
-    lute: bool,
-
-    /// Split when obtaining the ship
-    #[default = true]
-    ship: bool,
-
-    /// Split when obtaining the crown
-    #[default = true]
-    crown: bool,
-
-    /// Split when obtaining the Crystal Eye
-    #[default = false]
-    crystal_eye: bool,
-
-    /// Split when obtaining the Tonic
-    #[default = true]
-    tonic: bool,
-
-    /// Split when obtaining the Mystic Key
-    #[default = true]
-    mystic_key: bool,
-
-    /// Split when obtaining the Nitro
-    #[default = true]
-    nitro: bool,
-
-    /// Split when obtaining the Star Ruby
-    #[default = false]
-    star_ruby: bool,
-
-    /// Split when obtaining the Earth Rod
-    #[default = true]
-    earth_rod: bool,
-
-    /// Split when obtaining the Canoe
-    #[default = true]
-    canoe: bool,
-
-    /// Split when obtaining the Levi Stone
-    #[default = true]
-    levi_stone: bool,
-
-    /// Split when obtaining the Air Ship
-    #[default = false]
-    air_ship: bool,
-
-    /// Split when obtaining the Warp Cube
-    #[default = true]
-    warp_cube: bool,
-
-    /// Split when obtaining the Bottled Faerie
-    #[default = false]
-    bottled_faerie: bool,
-
-    /// Split when obtaining the Oxyale
-    #[default = true]
-    oxyale: bool,
-
-    /// Split when obtaining the Rosetta Stone
-    #[default = true]
-    rosetta_stone: bool,
-
-    /// Split when obtaining the Chime
-    #[default = true]
-    chime: bool,
 }
 
 struct SettingsDebug<'a>(&'a Settings);
