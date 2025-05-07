@@ -1,10 +1,9 @@
 use asr::{
     arrayvec::ArrayVec,
     game_engine::unity::il2cpp::{Class2, Game},
-    Pointer,
 };
 
-use csharp_mem::{Array, List, Map};
+use csharp_mem::{Array, List, Map, Pointer};
 use num_enum::FromPrimitive;
 
 pub struct Data {
@@ -175,25 +174,25 @@ impl Battles {
 
         let instantiate = self
             .instantiate
-            .read_pointer(game, manager.instantiate_manager)?;
+            .read(game, manager.instantiate_manager.addr())?;
 
-        let event_command = self.event_command.read_pointer(game, manager.event)?;
+        let event_command = self.event_command.read(game, manager.event.addr())?;
 
         let playing = event_command.battle_play;
 
-        let judgement = self.judgement.read_pointer(game, manager.judgement)?;
+        let judgement = self.judgement.read(game, manager.judgement.addr())?;
         let result = BattleResult::from(judgement.result);
 
         let enemy_data = self
             .enemy_instance
-            .read_pointer(game, instantiate.enemy_data)?;
+            .read(game, instantiate.enemy_data.address().into())?;
 
         let monster_party = self
             .monster_party
-            .read_pointer(game, enemy_data.monster_party)?;
-        let monster_party = monster_party.values.resolve(game)?;
+            .read(game, enemy_data.monster_party.addr())?;
+        let monster_party = monster_party.values;
 
-        let encounter_id = monster_party.get(game, MonsterParty::ID_INDEX)?;
+        let encounter_id = monster_party.get(game.process(), MonsterParty::ID_INDEX)?;
 
         let result = BattleInfo {
             playing,
@@ -225,20 +224,18 @@ impl Items {
     fn inventory(&mut self, game: &Game<'_>) -> Option<Inventory> {
         let manager = self.user_data.read(game)?;
 
-        let key_items = manager.key_items.resolve(game)?;
-
-        let key_items = key_items
-            .iter(game)
-            .filter_map(|(_, item)| self.item_data.read_pointer(game, item).map(|i| i.item_id))
+        let key_items = manager
+            .key_items
+            .iter(game.process())?
+            .filter_map(|(_, item)| self.item_data.read(game, item.addr()).map(|i| i.item_id))
             .collect();
 
-        let vehicles = manager.vehicles.resolve(game)?;
-
-        let vehicles = vehicles
-            .iter(game)
+        let vehicles = manager
+            .vehicles
+            .iter(game.process())?
             .filter_map(|vehicle| {
-                let vehicle = self.transport_data.read_pointer(game, vehicle)?;
-                let vehicle = self.save_transport.read_pointer(game, vehicle.data)?;
+                let vehicle = self.transport_data.read(game, vehicle.addr())?;
+                let vehicle = self.save_transport.read(game, vehicle.data.addr())?;
                 let _ = u32::try_from(vehicle.map_id).ok()?;
 
                 Some(vehicle.id)
