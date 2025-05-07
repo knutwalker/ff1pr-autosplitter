@@ -117,10 +117,10 @@ async fn main() {
 
 #[derive(Gui, Debug, Copy, Clone, PartialEq, Eq)]
 pub enum BattleSplit {
-    /// Split battles as soon as the death animation starts.
+    /// Split battles as soon as the death animation starts
     DeathAnimation,
 
-    /// Split battles after all spoils are collected and the battle fades out.
+    /// Split battles after all spoils are collected and the battle fades out
     #[default]
     BattleEnd,
 }
@@ -128,9 +128,6 @@ pub enum BattleSplit {
 #[derive(Gui)]
 pub struct Settings {
     /// Boss related splits.
-    ///
-    /// The default is to split when the battle fades into the field/wm screen.
-    /// This can be controlled with the first settings.
     _bosses: Title,
 
     /// When to split on battles.
