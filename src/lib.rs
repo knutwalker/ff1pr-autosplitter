@@ -4,6 +4,7 @@ use crate::data::{BattleResult, Data};
 use asr::{
     future::next_tick,
     game_engine::unity::il2cpp::{Game, Module},
+    settings::{gui::Title, Gui},
     timer::{self, TimerState},
     watcher::Watcher,
     Process,
@@ -63,8 +64,8 @@ enum State {
 
 async fn main() {
     asr::set_tick_rate(60.0);
-    let settings = Settings::register();
-    log!("Loaded settings: {settings:?}");
+    let mut settings = Settings::register();
+    log!("Loaded settings: {:?}", SettingsDebug(&settings));
 
     loop {
         let process = Process::wait_attach("FINAL FANTASY.exe").await;
@@ -92,8 +93,11 @@ async fn main() {
                                 continue 'outer;
                             }
                             TimerState::Running => {
+                                settings.update();
+                                let early = settings.battle_split == BattleSplit::DeathAnimation;
+
                                 if let Some(split) = splits
-                                    .check(data, &game, settings.split_on_death_animation)
+                                    .check(data, &game, early)
                                     .filter(|s| settings.filter(*s))
                                 {
                                     log!("Splitting: {split:?}");
@@ -111,111 +115,58 @@ async fn main() {
     }
 }
 
-#[derive(Debug, asr::user_settings::Settings)]
+#[derive(Gui, Debug, Copy, Clone, PartialEq, Eq)]
+pub enum BattleSplit {
+    /// Split battles as soon as the death animation starts.
+    DeathAnimation,
+
+    /// Split battles after all spoils are collected and the battle fades out.
+    #[default]
+    BattleEnd,
+}
+
+#[derive(Gui)]
 pub struct Settings {
-    /// Split battles on death animation (checked) or after spoils screens (unchecked).
-    #[default = false]
-    split_on_death_animation: bool,
+    /// Boss related splits.
+    ///
+    /// The default is to split when the battle fades into the field/wm screen.
+    /// This can be controlled with the first settings.
+    _bosses: Title,
+
+    /// When to split on battles.
+    battle_split: BattleSplit,
 
     /// Split when defeating Garland
     #[default = true]
     garland: bool,
 
-    /// Split when obtaining the lute
-    #[default = false]
-    lute: bool,
-
     /// Split when defating the Pirates
     #[default = false]
     pirates: bool,
-
-    /// Split when obtaining the ship
-    #[default = true]
-    ship: bool,
 
     /// Split when defeating Piscodemons
     #[default = false]
     piscodemons: bool,
 
-    /// Split when obtaining the crown
-    #[default = true]
-    crown: bool,
-
     /// Split when defeating Astos
     #[default = true]
     astos: bool,
-
-    /// Split when obtaining the Crystal Eye
-    #[default = false]
-    crystal_eye: bool,
-
-    /// Split when obtaining the Tonic
-    #[default = true]
-    tonic: bool,
-
-    /// Split when obtaining the Mystic Key
-    #[default = true]
-    mystic_key: bool,
-
-    /// Split when obtaining the Nitro
-    #[default = true]
-    nitro: bool,
 
     /// Split when defeating Vampire
     #[default = true]
     vampire: bool,
 
-    /// Split when obtaining the Star Ruby
-    #[default = false]
-    star_ruby: bool,
-
-    /// Split when obtaining the Earth Rod
-    #[default = true]
-    earth_rod: bool,
-
     /// Split when defeating Lich
     #[default = true]
     lich: bool,
-
-    /// Split when obtaining the Canoe
-    #[default = true]
-    canoe: bool,
 
     /// Split when defeating Evil Eye
     #[default = false]
     evil_eye: bool,
 
-    /// Split when obtaining the Levi Stone
-    #[default = true]
-    levi_stone: bool,
-
-    /// Split when obtaining the Air Ship
-    #[default = false]
-    air_ship: bool,
-
-    /// Split when obtaining the Warp Cube
-    #[default = true]
-    warp_cube: bool,
-
-    /// Split when obtaining the Bottled Faerie
-    #[default = false]
-    bottled_faerie: bool,
-
-    /// Split when obtaining the Oxyale
-    #[default = true]
-    oxyale: bool,
-
-    /// Split when obtaining the Rosetta Stone
-    #[default = true]
-    rosetta_stone: bool,
-
     /// Split when defeating Kraken
     #[default = true]
     kraken: bool,
-
-    /// Split when obtaining the Chime
-    #[default = true]
-    chime: bool,
 
     /// Split when defeating Blue Dragon
     #[default = false]
@@ -252,6 +203,163 @@ pub struct Settings {
     /// Split when defeating Chaos
     #[default = true]
     chaos: bool,
+
+    /// Item related splits.
+    ///
+    /// Splits happen when the "recieved" dialog box vanishes.
+    _items: Title,
+
+    /// Split when obtaining the lute
+    #[default = false]
+    lute: bool,
+
+    /// Split when obtaining the ship
+    #[default = true]
+    ship: bool,
+
+    /// Split when obtaining the crown
+    #[default = true]
+    crown: bool,
+
+    /// Split when obtaining the Crystal Eye
+    #[default = false]
+    crystal_eye: bool,
+
+    /// Split when obtaining the Tonic
+    #[default = true]
+    tonic: bool,
+
+    /// Split when obtaining the Mystic Key
+    #[default = true]
+    mystic_key: bool,
+
+    /// Split when obtaining the Nitro
+    #[default = true]
+    nitro: bool,
+
+    /// Split when obtaining the Star Ruby
+    #[default = false]
+    star_ruby: bool,
+
+    /// Split when obtaining the Earth Rod
+    #[default = true]
+    earth_rod: bool,
+
+    /// Split when obtaining the Canoe
+    #[default = true]
+    canoe: bool,
+
+    /// Split when obtaining the Levi Stone
+    #[default = true]
+    levi_stone: bool,
+
+    /// Split when obtaining the Air Ship
+    #[default = false]
+    air_ship: bool,
+
+    /// Split when obtaining the Warp Cube
+    #[default = true]
+    warp_cube: bool,
+
+    /// Split when obtaining the Bottled Faerie
+    #[default = false]
+    bottled_faerie: bool,
+
+    /// Split when obtaining the Oxyale
+    #[default = true]
+    oxyale: bool,
+
+    /// Split when obtaining the Rosetta Stone
+    #[default = true]
+    rosetta_stone: bool,
+
+    /// Split when obtaining the Chime
+    #[default = true]
+    chime: bool,
+}
+
+struct SettingsDebug<'a>(&'a Settings);
+
+impl std::fmt::Debug for SettingsDebug<'_> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let Settings {
+            _bosses: _,
+            battle_split,
+            garland,
+            pirates,
+            piscodemons,
+            astos,
+            vampire,
+            lich,
+            evil_eye,
+            kraken,
+            blue_dragon,
+            tiamat,
+            marilith,
+            death_eye,
+            lich2,
+            marilith2,
+            kraken2,
+            tiamat2,
+            chaos,
+            _items: _,
+            lute,
+            ship,
+            crown,
+            crystal_eye,
+            tonic,
+            mystic_key,
+            nitro,
+            star_ruby,
+            earth_rod,
+            canoe,
+            levi_stone,
+            air_ship,
+            warp_cube,
+            bottled_faerie,
+            oxyale,
+            rosetta_stone,
+            chime,
+        } = self.0;
+
+        f.debug_struct("Settings")
+            .field("battle_split", battle_split)
+            .field("garland", garland)
+            .field("pirates", pirates)
+            .field("piscodemons", piscodemons)
+            .field("astos", astos)
+            .field("vampire", vampire)
+            .field("lich", lich)
+            .field("evil_eye", evil_eye)
+            .field("kraken", kraken)
+            .field("blue_dragon", blue_dragon)
+            .field("tiamat", tiamat)
+            .field("marilith", marilith)
+            .field("death_eye", death_eye)
+            .field("lich2", lich2)
+            .field("marilith2", marilith2)
+            .field("kraken2", kraken2)
+            .field("tiamat2", tiamat2)
+            .field("chaos", chaos)
+            .field("lute", lute)
+            .field("ship", ship)
+            .field("crown", crown)
+            .field("crystal_eye", crystal_eye)
+            .field("tonic", tonic)
+            .field("mystic_key", mystic_key)
+            .field("nitro", nitro)
+            .field("star_ruby", star_ruby)
+            .field("earth_rod", earth_rod)
+            .field("canoe", canoe)
+            .field("levi_stone", levi_stone)
+            .field("air_ship", air_ship)
+            .field("warp_cube", warp_cube)
+            .field("bottled_faerie", bottled_faerie)
+            .field("oxyale", oxyale)
+            .field("rosetta_stone", rosetta_stone)
+            .field("chime", chime)
+            .finish()
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]

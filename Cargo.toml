@@ -12,7 +12,7 @@ ahash = { version = "0.8.3", default-features = false, features = [
     "compile-time-rng",
 ] }
 # asr = { path = "../asr", features = [
-asr = { git = "https://github.com/knutwalker/asr", branch = "new-derive", features = [
+asr = { git = "https://github.com/knutwalker/asr", branch = "merged2", features = [
     "alloc",  # Working with allocations.
     "derive", # Defining your own settings structs, converting endianness, and binding to .NET classes.
     # "flags", # Working with bit flags.
