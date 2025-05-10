@@ -1,0 +1,32 @@
+[package]
+name = "ff1pr-autosplitter"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+asr = { git = "https://github.com/LiveSplit/asr", features = [
+    # "alloc", # Working with allocations.
+    "derive", # Defining your own settings structs, converting endianness, and binding to .NET classes.
+    "unity",  # Accessing games using the Unity engine.
+] }
+bytemuck = { version = "1", features = ["derive", "min_const_generics"] }
+num_enum = { version = "0.7.3", default-features = false }
+
+[lib]
+crate-type = ["cdylib"]
+
+[profile.release]
+lto = true
+panic = "abort"
+codegen-units = 1
+strip = true
+
+[profile.release.build-override]
+opt-level = 0
+
+[lints.clippy]
+bool-comparison = "allow"
+collapsible-if = "allow"
+needless-return = "allow"
+manual-div-ceil = "allow"
