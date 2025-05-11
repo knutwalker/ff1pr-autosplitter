@@ -484,7 +484,7 @@ impl Splits {
 
         if let Some(mon) = self.battle_check(data, early) {
             if mon == Monster::Chaos {
-                self.chaos.set(60);
+                self.chaos.set(45);
                 return None;
             }
             return Some(SplitOn::Monster(mon));
