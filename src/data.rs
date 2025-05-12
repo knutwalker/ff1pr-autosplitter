@@ -41,6 +41,7 @@ pub struct BattleInfo {
     pub playing: bool,
     pub result: BattleResult,
     pub encounter_id: u32,
+    pub elapsed_time: f32,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -104,13 +105,14 @@ struct Battles {
     monster_party: UnityPointer<5>,
     end_result: UnityPointer<3>,
     is_playing: UnityPointer<3>,
+    elapsed_time: UnityPointer<2>,
 }
 
 impl Battles {
     const ENCOUNTER_ID_INDEX: usize = 0;
 
     fn new() -> Self {
-        let active = ptr_path("BattlePlugManager", ["instance", "isBattle"]); // bool
+        let active = ptr_path("BattlePlugManager", ["instance", "isBattle"]);
         let monster_party = ptr_path(
             "BattlePlugManager",
             [
@@ -137,12 +139,14 @@ impl Battles {
                 "<isBattlePlay>k__BackingField",
             ],
         );
+        let elapsed_time = ptr_path("BattlePlugManager", ["instance", "elapsedTime"]);
 
         Self {
             active,
             monster_party,
             end_result,
             is_playing,
+            elapsed_time,
         }
     }
 
@@ -163,11 +167,17 @@ impl Battles {
             .ok()?;
 
         let encounter_id = monster_party.get(process, Self::ENCOUNTER_ID_INDEX)?;
+        let elapsed_time = self
+            .elapsed_time
+            .deref(process, module, image)
+            .ok()
+            .unwrap_or_default();
 
         let result = BattleInfo {
             playing,
             result,
             encounter_id,
+            elapsed_time,
         };
 
         Some(result)

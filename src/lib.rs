@@ -8,7 +8,7 @@ use asr::{
     watcher::Watcher,
     Process,
 };
-use core::{num::NonZeroU32, ops::ControlFlow};
+use core::ops::ControlFlow;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 use crate::data::{BattleResult, Data};
@@ -396,26 +396,6 @@ impl Settings {
     }
 }
 
-#[derive(Debug, Clone, Default)]
-struct TickTimer {
-    deadline: Option<NonZeroU32>,
-}
-
-impl TickTimer {
-    fn set(&mut self, deadline: u32) {
-        self.deadline = NonZeroU32::new(deadline);
-    }
-
-    fn tick(&mut self) -> bool {
-        let Some(deadline) = self.deadline else {
-            return false;
-        };
-        let deadline = NonZeroU32::new(deadline.get() - 1);
-        self.deadline = deadline;
-        return self.deadline.is_none();
-    }
-}
-
 #[derive(Debug, Clone, Copy)]
 struct Inventory(u64);
 
@@ -464,7 +444,7 @@ struct Splits {
     in_battle: Watcher<bool>,
     battle_playing: Watcher<bool>,
     items: Inventory,
-    chaos: TickTimer,
+    chaos_end: f32,
 }
 
 impl Splits {
@@ -473,20 +453,12 @@ impl Splits {
             in_battle: Watcher::new(),
             battle_playing: Watcher::new(),
             items: Inventory::empty(),
-            chaos: TickTimer::default(),
+            chaos_end: f32::MAX,
         }
     }
 
     fn check(&mut self, data: &mut Data, early: bool) -> Option<SplitOn> {
-        if self.chaos.tick() {
-            return Some(SplitOn::Monster(Monster::Chaos));
-        }
-
         if let Some(mon) = self.battle_check(data, early) {
-            if mon == Monster::Chaos {
-                self.chaos.set(45);
-                return None;
-            }
             return Some(SplitOn::Monster(mon));
         }
 
@@ -527,12 +499,25 @@ impl Splits {
                     log!("Encounter: {mon:?} -- {:?}", info.result);
                     if info.result == BattleResult::Win {
                         if mon == Monster::Chaos {
-                            return Some(mon);
+                            self.chaos_end = info.elapsed_time + {
+                                const FRAMES: f32 = 113.0;
+                                const FPS: f32 = 60.0;
+                                const TIME: f32 = FRAMES / FPS;
+
+                                TIME
+                            };
+
+                            return None;
                         }
 
                         if early {
                             return Some(mon);
                         }
+                    }
+                } else if playing.current == false && mon == Monster::Chaos {
+                    if info.elapsed_time > self.chaos_end {
+                        self.chaos_end = f32::MAX;
+                        return Some(mon);
                     }
                 }
             }
