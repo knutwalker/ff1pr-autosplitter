@@ -679,13 +679,30 @@ impl core::fmt::Debug for SettingsDebug<'_> {
             start,
             battle_split,
             garland,
+            lute,
             pirates,
+            ship,
             piscodemons,
+            crown,
             astos,
+            crystal_eye,
+            tonic,
+            mystic_key,
+            nitro,
             vampire,
+            star_ruby,
+            earth_rod,
             lich,
+            canoe,
             evil_eye,
+            levi_stone,
+            air_ship,
+            warp_cube,
+            bottled_faerie,
+            oxyale,
+            rosetta_stone,
             kraken,
+            chime,
             blue_dragon,
             tiamat,
             marilith,
@@ -695,24 +712,7 @@ impl core::fmt::Debug for SettingsDebug<'_> {
             kraken2,
             tiamat2,
             chaos,
-            lute,
-            ship,
-            crown,
-            crystal_eye,
-            tonic,
-            mystic_key,
-            nitro,
-            star_ruby,
-            earth_rod,
-            canoe,
-            levi_stone,
-            air_ship,
-            warp_cube,
-            bottled_faerie,
-            oxyale,
-            rosetta_stone,
-            chime,
-            _igt_title: _,
+            _igt_title,
             igt,
         } = self.0;
 
@@ -720,13 +720,30 @@ impl core::fmt::Debug for SettingsDebug<'_> {
             .field("start", start)
             .field("battle_split", battle_split)
             .field("garland", garland)
+            .field("lute", lute)
             .field("pirates", pirates)
+            .field("ship", ship)
             .field("piscodemons", piscodemons)
+            .field("crown", crown)
             .field("astos", astos)
+            .field("crystal_eye", crystal_eye)
+            .field("tonic", tonic)
+            .field("mystic_key", mystic_key)
+            .field("nitro", nitro)
             .field("vampire", vampire)
+            .field("star_ruby", star_ruby)
+            .field("earth_rod", earth_rod)
             .field("lich", lich)
+            .field("canoe", canoe)
             .field("evil_eye", evil_eye)
+            .field("levi_stone", levi_stone)
+            .field("air_ship", air_ship)
+            .field("warp_cube", warp_cube)
+            .field("bottled_faerie", bottled_faerie)
+            .field("oxyale", oxyale)
+            .field("rosetta_stone", rosetta_stone)
             .field("kraken", kraken)
+            .field("chime", chime)
             .field("blue_dragon", blue_dragon)
             .field("tiamat", tiamat)
             .field("marilith", marilith)
@@ -736,23 +753,6 @@ impl core::fmt::Debug for SettingsDebug<'_> {
             .field("kraken2", kraken2)
             .field("tiamat2", tiamat2)
             .field("chaos", chaos)
-            .field("lute", lute)
-            .field("ship", ship)
-            .field("crown", crown)
-            .field("crystal_eye", crystal_eye)
-            .field("tonic", tonic)
-            .field("mystic_key", mystic_key)
-            .field("nitro", nitro)
-            .field("star_ruby", star_ruby)
-            .field("earth_rod", earth_rod)
-            .field("canoe", canoe)
-            .field("levi_stone", levi_stone)
-            .field("air_ship", air_ship)
-            .field("warp_cube", warp_cube)
-            .field("bottled_faerie", bottled_faerie)
-            .field("oxyale", oxyale)
-            .field("rosetta_stone", rosetta_stone)
-            .field("chime", chime)
             .field("igt", igt)
             .finish()
     }
