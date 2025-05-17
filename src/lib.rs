@@ -456,6 +456,7 @@ impl Title {
 struct Splits {
     in_battle: Watcher<bool>,
     battle_playing: Watcher<bool>,
+    key_item_count: Watcher<u32>,
     items: Inventory,
     chaos_end: f32,
 }
@@ -465,6 +466,7 @@ impl Splits {
         Self {
             in_battle: Watcher::new(),
             battle_playing: Watcher::new(),
+            key_item_count: Watcher::new(),
             items: Inventory::empty(),
             chaos_end: f32::MAX,
         }
@@ -565,19 +567,36 @@ impl Splits {
     }
 
     fn inventory_check(&mut self, data: &mut Data) -> Option<Pickup> {
-        if let Some(inventory) = data.inventory() {
-            for item in inventory
-                .key_items
-                .iter()
-                .chain(inventory.vehicles.iter())
-                .copied()
+        let items = data.items();
+        let key_item_count = items.key_items_count();
+        let key_item_count = self.key_item_count.update_infallible(key_item_count);
+
+        if key_item_count.changed() {
+            log!(
+                "Key items changed from {} to {}",
+                key_item_count.old,
+                key_item_count.current
+            );
+        }
+
+        if key_item_count.increased() {
+            if let Some(item) = items
+                .key_item_ids()
                 .filter_map(|i| Pickup::try_from(i).ok())
+                .find(|item| self.items.insert(*item))
             {
-                if self.items.insert(item) {
-                    log!("Picked up the {item:?}");
-                    return Some(item);
-                }
+                log!("Picked up the {item:?}");
+                return Some(item);
             }
+        }
+
+        if let Some(vehicle) = items
+            .vehicle_ids()
+            .filter_map(|i| Pickup::try_from(i).ok())
+            .find(|item| self.items.insert(*item))
+        {
+            log!("Obtained up the {vehicle:?}");
+            return Some(vehicle);
         }
 
         return None;
