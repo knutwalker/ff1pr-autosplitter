@@ -232,14 +232,14 @@ async fn game_loop(process: &Process, settings: &mut Settings) {
     let image = module.wait_get_default_image(process).await;
     log!("Attached to the game");
 
-    let mut data = Data::new(process, &module, &image).await;
+    let data = Data::new(process, &module, &image).await;
     log!("Loaded game data");
 
     let mut state = State::NotRunning(Title::new());
 
     'outer: loop {
         settings.update();
-        match main_loop(&mut data, &mut state) {
+        match main_loop(&data, &mut state) {
             ControlFlow::Continue(()) => continue 'outer,
             ControlFlow::Break(Action::Start) if settings.start => {
                 log!("Starting timer");
@@ -262,7 +262,7 @@ async fn game_loop(process: &Process, settings: &mut Settings) {
     }
 }
 
-fn main_loop(data: &mut Data<'_>, state: &mut State) -> ControlFlow<Action> {
+fn main_loop(data: &Data<'_>, state: &mut State) -> ControlFlow<Action> {
     match state {
         State::NotRunning(title) => match timer::state() {
             TimerState::Running => {
@@ -443,7 +443,7 @@ impl Title {
         }
     }
 
-    fn new_game(&mut self, data: &mut Data) -> bool {
+    fn new_game(&mut self, data: &Data) -> bool {
         let fade_out = self.fade_out.update_infallible(data.has_fade_out());
         if fade_out.changed_to(&true) {
             log!("Fade out detected");
@@ -472,7 +472,7 @@ impl Splits {
         }
     }
 
-    fn check(&mut self, data: &mut Data) -> Option<SplitOn> {
+    fn check(&mut self, data: &Data) -> Option<SplitOn> {
         if let Some(mon) = self.battle_check(data) {
             return Some(SplitOn::Monster(mon));
         }
@@ -484,7 +484,7 @@ impl Splits {
         return None;
     }
 
-    fn battle_check(&mut self, data: &mut Data) -> Option<MonsterSplit> {
+    fn battle_check(&mut self, data: &Data) -> Option<MonsterSplit> {
         let battles = data.battles();
 
         let in_battle = self.in_battle.update_infallible(battles.active());
@@ -566,7 +566,7 @@ impl Splits {
         return None;
     }
 
-    fn inventory_check(&mut self, data: &mut Data) -> Option<Pickup> {
+    fn inventory_check(&mut self, data: &Data) -> Option<Pickup> {
         let items = data.items();
         let key_item_count = items.key_items_count();
         let key_item_count = self.key_item_count.update_infallible(key_item_count);

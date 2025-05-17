@@ -60,7 +60,7 @@ impl Data<'_> {
         }
     }
 
-    pub fn has_fade_out(&mut self) -> bool {
+    pub fn has_fade_out(&self) -> bool {
         self.new_game
             .has_fade_out(self.process, self.module, self.image)
             .unwrap_or(false)
@@ -132,7 +132,7 @@ impl NewGame {
         Self { fade_out_finish }
     }
 
-    fn has_fade_out(&mut self, process: &Process, module: &Module, image: &Image) -> Option<bool> {
+    fn has_fade_out(&self, process: &Process, module: &Module, image: &Image) -> Option<bool> {
         let ptr = self
             .fade_out_finish
             .deref::<Address64>(process, module, image)
