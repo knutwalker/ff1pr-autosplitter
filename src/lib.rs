@@ -73,7 +73,7 @@ pub struct Settings {
     battle_split: BattleSplit,
 
     /// Split when defeating Garland
-    #[default = true]
+    #[default = false]
     garland: bool,
 
     /// Split when obtaining the lute
@@ -85,7 +85,7 @@ pub struct Settings {
     pirates: bool,
 
     /// Split when obtaining the ship
-    #[default = true]
+    #[default = false]
     ship: bool,
 
     /// Split when defeating Piscodemons
@@ -93,11 +93,11 @@ pub struct Settings {
     piscodemons: bool,
 
     /// Split when obtaining the crown
-    #[default = true]
+    #[default = false]
     crown: bool,
 
     /// Split when defeating Astos
-    #[default = true]
+    #[default = false]
     astos: bool,
 
     /// Split when obtaining the Crystal Eye
@@ -105,19 +105,19 @@ pub struct Settings {
     crystal_eye: bool,
 
     /// Split when obtaining the Tonic
-    #[default = true]
+    #[default = false]
     tonic: bool,
 
     /// Split when obtaining the Mystic Key
-    #[default = true]
+    #[default = false]
     mystic_key: bool,
 
     /// Split when obtaining the Nitro
-    #[default = true]
+    #[default = false]
     nitro: bool,
 
     /// Split when defeating Vampire
-    #[default = true]
+    #[default = false]
     vampire: bool,
 
     /// Split when obtaining the Star Ruby
@@ -125,15 +125,15 @@ pub struct Settings {
     star_ruby: bool,
 
     /// Split when obtaining the Earth Rod
-    #[default = true]
+    #[default = false]
     earth_rod: bool,
 
     /// Split when defeating Lich
-    #[default = true]
+    #[default = false]
     lich: bool,
 
     /// Split when obtaining the Canoe
-    #[default = true]
+    #[default = false]
     canoe: bool,
 
     /// Split when defeating Evil Eye
@@ -141,7 +141,7 @@ pub struct Settings {
     evil_eye: bool,
 
     /// Split when obtaining the Levi Stone
-    #[default = true]
+    #[default = false]
     levi_stone: bool,
 
     /// Split when obtaining the Air Ship
@@ -149,7 +149,7 @@ pub struct Settings {
     air_ship: bool,
 
     /// Split when obtaining the Warp Cube
-    #[default = true]
+    #[default = false]
     warp_cube: bool,
 
     /// Split when obtaining the Bottled Faerie
@@ -157,19 +157,19 @@ pub struct Settings {
     bottled_faerie: bool,
 
     /// Split when obtaining the Oxyale
-    #[default = true]
+    #[default = false]
     oxyale: bool,
 
     /// Split when obtaining the Rosetta Stone
-    #[default = true]
+    #[default = false]
     rosetta_stone: bool,
 
     /// Split when defeating Kraken
-    #[default = true]
+    #[default = false]
     kraken: bool,
 
     /// Split when obtaining the Chime
-    #[default = true]
+    #[default = false]
     chime: bool,
 
     /// Split when defeating Blue Dragon
@@ -177,11 +177,11 @@ pub struct Settings {
     blue_dragon: bool,
 
     /// Split when defeating Tiamat
-    #[default = true]
+    #[default = false]
     tiamat: bool,
 
     /// Split when defeating Marilith
-    #[default = true]
+    #[default = false]
     marilith: bool,
 
     /// Split when defeating Death Eye
@@ -189,19 +189,19 @@ pub struct Settings {
     death_eye: bool,
 
     /// Split when defeating Lich 2
-    #[default = true]
+    #[default = false]
     lich2: bool,
 
     /// Split when defeating Marilith 2
-    #[default = true]
+    #[default = false]
     marilith2: bool,
 
     /// Split when defeating Kraken 2
-    #[default = true]
+    #[default = false]
     kraken2: bool,
 
     /// Split when defeating Tiamat 2
-    #[default = true]
+    #[default = false]
     tiamat2: bool,
 
     /// Split when defeating Chaos
