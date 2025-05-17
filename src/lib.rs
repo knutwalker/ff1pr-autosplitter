@@ -601,15 +601,13 @@ impl Splits {
             );
         }
 
-        if key_item_count.increased() {
-            if let Some(item) = items
-                .key_item_ids()
-                .filter_map(|i| Pickup::try_from(i).ok())
-                .find(|item| self.items.insert(*item))
-            {
-                log!("Picked up the {item:?}");
-                return Some(item);
-            }
+        if let Some(item) = items
+            .key_item_ids()
+            .filter_map(|i| Pickup::try_from(i).ok())
+            .find(|item| self.items.insert(*item))
+        {
+            log!("Picked up the {item:?}");
+            return Some(item);
         }
 
         if let Some(vehicle) = items
