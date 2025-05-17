@@ -386,6 +386,7 @@ impl Settings {
     fn filter(&self, split: SplitOn) -> bool {
         return match split {
             SplitOn::Monster(MonsterSplit { monster, end }) => match (end, self.battle_split) {
+                _ if monster == Monster::Chaos => self.chaos,
                 (MonsterEnd::DeathAnimation, BattleSplit::BattleEnd) => false,
                 (MonsterEnd::BattleEnd, BattleSplit::DeathAnimation) => false,
                 _ => match monster {
