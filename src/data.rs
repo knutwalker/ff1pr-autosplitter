@@ -5,43 +5,19 @@ use asr::{
 };
 use bytemuck::{AnyBitPattern, CheckedBitPattern};
 use core::{fmt, marker::PhantomData, mem::size_of};
-use num_enum::FromPrimitive;
+use num_enum::{FromPrimitive, IntoPrimitive};
 
-pub struct Data<'a> {
-    new_game: NewGame,
-    battles: Battles,
-    items: Items,
-    process: &'a Process,
-    module: &'a Module,
-    image: &'a Image,
-}
-
-impl Data<'_> {
-    pub fn has_fade_out(&mut self) -> bool {
-        self.new_game
-            .has_fade_out(self.process, self.module, self.image)
-            .unwrap_or(false)
-    }
-
-    pub fn battle_active(&mut self) -> bool {
-        self.battles.active(self.process, self.module, self.image)
-    }
-
-    pub fn battle_info(&mut self) -> Option<BattleInfo> {
-        self.battles.info(self.process, self.module, self.image)
-    }
-
-    pub fn inventory(&mut self) -> Option<Inventory> {
-        self.items.inventory(self.process, self.module, self.image)
-    }
-}
-
-#[derive(Debug)]
-pub struct BattleInfo {
-    pub playing: bool,
-    pub result: BattleResult,
-    pub encounter_id: u32,
-    pub elapsed_time: f32,
+#[derive(Copy, Clone, Debug, PartialEq, Eq, FromPrimitive, IntoPrimitive)]
+#[repr(u32)]
+pub enum BattleResult {
+    None = 0,
+    Win = 1,
+    Lose = 2,
+    Escape = 3,
+    Forced = 4,
+    Restart = 5,
+    #[num_enum(default)]
+    Unknown = u32::MAX,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -50,16 +26,96 @@ pub struct Inventory {
     pub vehicles: ArrayVec<u32, 4>,
 }
 
+pub struct Data<'a> {
+    new_game: NewGame,
+    battles: BattleData,
+    items: Items,
+    process: &'a Process,
+    module: &'a Module,
+    image: &'a Image,
+}
+
 impl<'a> Data<'a> {
     pub async fn new(process: &'a Process, module: &'a Module, image: &'a Image) -> Self {
         Self {
             new_game: NewGame::new(),
-            battles: Battles::new(),
+            battles: BattleData::new(),
             items: Items::new(process, module, image).await,
             process,
             module,
             image,
         }
+    }
+}
+
+impl Data<'_> {
+    pub fn battles(&self) -> Battles<'_> {
+        Battles {
+            data: &self.battles,
+            process: self.process,
+            module: self.module,
+            image: self.image,
+        }
+    }
+
+    pub fn has_fade_out(&mut self) -> bool {
+        self.new_game
+            .has_fade_out(self.process, self.module, self.image)
+            .unwrap_or(false)
+    }
+
+    pub fn inventory(&mut self) -> Option<Inventory> {
+        self.items.inventory(self.process, self.module, self.image)
+    }
+}
+
+pub struct Battles<'a> {
+    data: &'a BattleData,
+    process: &'a Process,
+    module: &'a Module,
+    image: &'a Image,
+}
+
+impl Battles<'_> {
+    const ENCOUNTER_ID_INDEX: usize = 0;
+
+    pub fn active(&self) -> bool {
+        self.data
+            .active
+            .deref(self.process, self.module, self.image)
+            .unwrap_or_default()
+    }
+
+    pub fn encounter_id(&self) -> Option<u32> {
+        self.data
+            .monster_party
+            .deref::<Pointer<Array<u32>>>(self.process, self.module, self.image)
+            .ok()?
+            .get(self.process, Self::ENCOUNTER_ID_INDEX)
+    }
+
+    pub fn playing(&self) -> bool {
+        self.data
+            .is_playing
+            .deref(self.process, self.module, self.image)
+            .unwrap_or_default()
+    }
+
+    pub fn result(&self) -> BattleResult {
+        let result = self
+            .data
+            .end_result
+            .deref::<u32>(self.process, self.module, self.image)
+            .unwrap_or(BattleResult::Unknown.into());
+
+        BattleResult::from(result)
+    }
+
+    pub fn elapsed_time(&self) -> f32 {
+        self.data
+            .elapsed_time
+            .deref(self.process, self.module, self.image)
+            .unwrap_or_default()
     }
 }
 
@@ -87,20 +143,7 @@ impl NewGame {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, FromPrimitive)]
-#[repr(u32)]
-pub enum BattleResult {
-    None = 0,
-    Win = 1,
-    Lose = 2,
-    Escape = 3,
-    Forced = 4,
-    Restart = 5,
-    #[num_enum(default)]
-    Unknown = u32::MAX,
-}
-
-struct Battles {
+struct BattleData {
     active: UnityPointer<2>,
     monster_party: UnityPointer<5>,
     end_result: UnityPointer<3>,
@@ -108,9 +151,7 @@ struct Battles {
     elapsed_time: UnityPointer<2>,
 }
 
-impl Battles {
-    const ENCOUNTER_ID_INDEX: usize = 0;
-
+impl BattleData {
     fn new() -> Self {
         let active = ptr_path("BattlePlugManager", ["instance", "isBattle"]);
         let monster_party = ptr_path(
@@ -148,39 +189,6 @@ impl Battles {
             is_playing,
             elapsed_time,
         }
-    }
-
-    fn active(&mut self, process: &Process, module: &Module, image: &Image) -> bool {
-        self.active
-            .deref(process, module, image)
-            .unwrap_or_default()
-    }
-
-    fn info(&mut self, process: &Process, module: &Module, image: &Image) -> Option<BattleInfo> {
-        let playing = self.is_playing.deref(process, module, image).ok()?;
-        let result = self.end_result.deref::<u32>(process, module, image).ok()?;
-        let result = BattleResult::from(result);
-
-        let monster_party = self
-            .monster_party
-            .deref::<Pointer<Array<u32>>>(process, module, image)
-            .ok()?;
-
-        let encounter_id = monster_party.get(process, Self::ENCOUNTER_ID_INDEX)?;
-        let elapsed_time = self
-            .elapsed_time
-            .deref(process, module, image)
-            .ok()
-            .unwrap_or_default();
-
-        let result = BattleInfo {
-            playing,
-            result,
-            encounter_id,
-            elapsed_time,
-        };
-
-        Some(result)
     }
 }
 
