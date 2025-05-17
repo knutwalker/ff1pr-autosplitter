@@ -6,7 +6,7 @@ use asr::{
     settings::{gui::Title as Heading, Gui},
     time::Duration,
     timer::{self, TimerState},
-    watcher::Watcher,
+    watcher::{Pair, Watcher},
     Process,
 };
 use core::ops::ControlFlow;
@@ -88,6 +88,10 @@ pub struct Settings {
     #[default = false]
     ship: bool,
 
+    /// Split when entering the Marsh Cave
+    #[default = false]
+    marsh_cave: bool,
+
     /// Split when defeating Piscodemons
     #[default = false]
     piscodemons: bool,
@@ -115,6 +119,10 @@ pub struct Settings {
     /// Split when obtaining the Nitro
     #[default = false]
     nitro: bool,
+
+    /// Split when having bought Firaga
+    #[default = false]
+    firaga: bool,
 
     /// Split when defeating Vampire
     #[default = false]
@@ -144,6 +152,10 @@ pub struct Settings {
     #[default = false]
     levi_stone: bool,
 
+    /// Split when leaving the Ice Cave
+    #[default = false]
+    ice_cave: bool,
+
     /// Split when obtaining the Air Ship
     #[default = false]
     air_ship: bool,
@@ -151,6 +163,10 @@ pub struct Settings {
     /// Split when obtaining the Warp Cube
     #[default = false]
     warp_cube: bool,
+
+    /// Split when leaving the Waterfall Cave
+    #[default = false]
+    waterfall_cave: bool,
 
     /// Split when obtaining the Bottled Faerie
     #[default = false]
@@ -176,6 +192,10 @@ pub struct Settings {
     #[default = false]
     blue_dragon: bool,
 
+    /// Split when entering the Flying Fortress
+    #[default = false]
+    flying_fortress: bool,
+
     /// Split when defeating Tiamat
     #[default = false]
     tiamat: bool,
@@ -187,6 +207,10 @@ pub struct Settings {
     /// Split when defeating Death Eye
     #[default = false]
     death_eye: bool,
+
+    /// Split when opening the Chaos Shrine with the Lute
+    #[default = false]
+    chaos_shrine: bool,
 
     /// Split when defeating Lich 2
     #[default = false]
@@ -316,6 +340,7 @@ enum Action {
 enum SplitOn {
     Monster(MonsterSplit),
     Pickup(Pickup),
+    Field(FieldSplit),
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, IntoPrimitive, TryFromPrimitive)]
@@ -391,6 +416,30 @@ enum Field {
     AirHangar = 122,
     #[num_enum(default)]
     Other = u32::MAX,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+enum FieldSplit {
+    MarshCave,
+    Firaga,
+    IceCave,
+    WaterfallCave,
+    FlyingFortress,
+    ChaosShrine,
+}
+
+impl FieldSplit {
+    fn from_watcher(watcher: &Pair<Field>) -> Option<Self> {
+        match (watcher.old, watcher.current) {
+            (Field::WorldMap, Field::MarshCave1) => Some(FieldSplit::MarshCave),
+            (Field::MelmondShop, Field::Melmond) => Some(FieldSplit::Firaga),
+            (Field::IceCave1, Field::WorldMap) => Some(FieldSplit::IceCave),
+            (Field::WaterfallCave, Field::WorldMap) => Some(FieldSplit::WaterfallCave),
+            (Field::MirageTower3, Field::FlyingFortress) => Some(FieldSplit::FlyingFortress),
+            (Field::ChaosShrine3, Field::ChaosShrine2) => Some(FieldSplit::ChaosShrine),
+            _ => None,
+        }
+    }
 }
 
 impl Field {
@@ -484,6 +533,12 @@ impl Settings {
             SplitOn::Pickup(Pickup::Oxyale) => self.oxyale,
             SplitOn::Pickup(Pickup::RosettaStone) => self.rosetta_stone,
             SplitOn::Pickup(Pickup::Chime) => self.chime,
+            SplitOn::Field(FieldSplit::MarshCave) => self.marsh_cave,
+            SplitOn::Field(FieldSplit::Firaga) => self.firaga,
+            SplitOn::Field(FieldSplit::IceCave) => self.ice_cave,
+            SplitOn::Field(FieldSplit::WaterfallCave) => self.waterfall_cave,
+            SplitOn::Field(FieldSplit::FlyingFortress) => self.flying_fortress,
+            SplitOn::Field(FieldSplit::ChaosShrine) => self.chaos_shrine,
         };
     }
 }
@@ -558,7 +613,11 @@ impl Splits {
             BattleCheck::Split(split) => return Some(SplitOn::Monster(split)),
         }
 
-        let field = self.field_check(data);
+        let field = match self.field_check(data) {
+            Ok(field) => return Some(SplitOn::Field(field)),
+            Err(field) => field,
+        };
+
         if field.has_key_item() {
             if let Some(item) = self.inventory_check(data) {
                 return Some(SplitOn::Pickup(item));
@@ -638,11 +697,15 @@ impl Splits {
         return BattleCheck::InBattle;
     }
 
-    fn field_check(&mut self, data: &Data) -> Field {
+    fn field_check(&mut self, data: &Data) -> Result<FieldSplit, Field> {
         let field = data.user().map_id().unwrap_or_default();
         let field = Field::from(field);
         let field = self.field.update_infallible(field);
-        field.current
+        if let Some(field) = FieldSplit::from_watcher(field) {
+            return Ok(field);
+        }
+
+        Err(field.current)
     }
 
     fn inventory_check(&mut self, data: &Data) -> Option<Pickup> {
@@ -682,6 +745,7 @@ impl core::fmt::Debug for SettingsDebug<'_> {
             lute,
             pirates,
             ship,
+            marsh_cave,
             piscodemons,
             crown,
             astos,
@@ -689,6 +753,7 @@ impl core::fmt::Debug for SettingsDebug<'_> {
             tonic,
             mystic_key,
             nitro,
+            firaga,
             vampire,
             star_ruby,
             earth_rod,
@@ -696,17 +761,21 @@ impl core::fmt::Debug for SettingsDebug<'_> {
             canoe,
             evil_eye,
             levi_stone,
+            ice_cave,
             air_ship,
             warp_cube,
+            waterfall_cave,
             bottled_faerie,
             oxyale,
             rosetta_stone,
             kraken,
             chime,
             blue_dragon,
+            flying_fortress,
             tiamat,
             marilith,
             death_eye,
+            chaos_shrine,
             lich2,
             marilith2,
             kraken2,
@@ -723,6 +792,7 @@ impl core::fmt::Debug for SettingsDebug<'_> {
             .field("lute", lute)
             .field("pirates", pirates)
             .field("ship", ship)
+            .field("marsh_cave", marsh_cave)
             .field("piscodemons", piscodemons)
             .field("crown", crown)
             .field("astos", astos)
@@ -730,6 +800,7 @@ impl core::fmt::Debug for SettingsDebug<'_> {
             .field("tonic", tonic)
             .field("mystic_key", mystic_key)
             .field("nitro", nitro)
+            .field("firaga", firaga)
             .field("vampire", vampire)
             .field("star_ruby", star_ruby)
             .field("earth_rod", earth_rod)
@@ -737,17 +808,21 @@ impl core::fmt::Debug for SettingsDebug<'_> {
             .field("canoe", canoe)
             .field("evil_eye", evil_eye)
             .field("levi_stone", levi_stone)
+            .field("ice_cave", ice_cave)
             .field("air_ship", air_ship)
             .field("warp_cube", warp_cube)
+            .field("waterfall_cave", waterfall_cave)
             .field("bottled_faerie", bottled_faerie)
             .field("oxyale", oxyale)
             .field("rosetta_stone", rosetta_stone)
             .field("kraken", kraken)
             .field("chime", chime)
             .field("blue_dragon", blue_dragon)
+            .field("flying_fortress", flying_fortress)
             .field("tiamat", tiamat)
             .field("marilith", marilith)
             .field("death_eye", death_eye)
+            .field("chaos_shrine", chaos_shrine)
             .field("lich2", lich2)
             .field("marilith2", marilith2)
             .field("kraken2", kraken2)
