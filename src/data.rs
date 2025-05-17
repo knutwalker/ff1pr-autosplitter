@@ -209,12 +209,6 @@ impl BattleData {
 }
 
 #[derive(Class, Debug)]
-struct OwnedItemData {
-    #[rename = "<ItemId>k__BackingField"]
-    item_id: u32,
-}
-
-#[derive(Class, Debug)]
 struct OwnedTransportationData {
     #[rename = "saveData"]
     data: Pointer<SaveTransportationData>,
@@ -230,7 +224,6 @@ struct SaveTransportationData {
 struct ItemsData {
     key_items: UnityPointer<2>,
     vehicles: UnityPointer<2>,
-    item_data: OwnedItemDataBinding,
     transport_data: OwnedTransportationDataBinding,
     save_transport: SaveTransportationDataBinding,
 }
@@ -243,14 +236,12 @@ impl ItemsData {
             ["instance", "<OwnedTransportationList>k__BackingField"],
         );
 
-        let item_data = OwnedItemData::bind(process, module, image).await;
         let transport_data = OwnedTransportationData::bind(process, module, image).await;
         let save_transport = SaveTransportationData::bind(process, module, image).await;
 
         Self {
             key_items,
             vehicles,
-            item_data,
             transport_data,
             save_transport,
         }
@@ -286,21 +277,11 @@ impl<'a> Items<'a> {
     pub fn key_item_ids(&self) -> impl Iterator<Item = u32> + 'a {
         self.data
             .key_items
-            .deref::<Pointer<Map<u32, Pointer<OwnedItemData>>>>(
-                self.process,
-                self.module,
-                self.image,
-            )
+            .deref::<Pointer<Map<u32, Pointer<()>>>>(self.process, self.module, self.image)
             .into_iter()
             .filter_map(|key_items| key_items.iter(self.process))
             .flatten()
-            .filter_map(|(_, item)| {
-                self.data
-                    .item_data
-                    .read(self.process, item.addr())
-                    .ok()
-                    .map(|i| i.item_id)
-            })
+            .map(|(item_id_plus_1, _)| item_id_plus_1 - 1)
     }
 
     pub fn vehicle_ids(&self) -> impl Iterator<Item = u32> + 'a {
