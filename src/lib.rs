@@ -10,9 +10,9 @@ use asr::{
     Process,
 };
 use core::ops::ControlFlow;
-use num_enum::{IntoPrimitive, TryFromPrimitive};
+use num_enum::{FromPrimitive, IntoPrimitive, TryFromPrimitive};
 
-use crate::data::{BattleResult, Data, Location};
+use crate::data::{BattleResult, Data};
 
 mod data;
 
@@ -360,6 +360,64 @@ struct MonsterSplit {
     end: MonsterEnd,
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, FromPrimitive)]
+#[repr(u32)]
+enum Field {
+    WorldMap = 1,
+    CastleCornelia = 2,
+    CorneliaThrone = 3,
+    MatoyaCave = 12,
+    Pravoka = 13,
+    ElvenCastle = 32,
+    WesternKeep = 33,
+    Melmond = 34,
+    MelmondShop = 39,
+    SageCave = 40,
+    CresentLake = 41,
+    OasisShop = 59,
+    Gaia = 60,
+    Lufenia = 70,
+    MarshCave1 = 73,
+    MarshCave3 = 75,
+    EarthCave3 = 78,
+    IceCave1 = 88,
+    IceCave2 = 91,
+    Underwater5 = 103,
+    WaterfallCave = 104,
+    MirageTower3 = 107,
+    FlyingFortress = 108,
+    ChaosShrine2 = 114,
+    ChaosShrine3 = 115,
+    AirHangar = 122,
+    #[num_enum(default)]
+    Other = u32::MAX,
+}
+
+impl Field {
+    fn has_key_item(self) -> bool {
+        matches!(
+            self,
+            Field::CorneliaThrone
+                | Field::Pravoka
+                | Field::MarshCave3
+                | Field::WesternKeep
+                | Field::MatoyaCave
+                | Field::ElvenCastle
+                | Field::CastleCornelia
+                | Field::EarthCave3
+                | Field::SageCave
+                | Field::CresentLake
+                | Field::IceCave2
+                | Field::AirHangar
+                | Field::WaterfallCave
+                | Field::OasisShop
+                | Field::Gaia
+                | Field::Underwater5
+                | Field::Lufenia
+        )
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive)]
 #[repr(u32)]
 enum Pickup {
@@ -477,8 +535,7 @@ impl Title {
 struct Splits {
     in_battle: Watcher<bool>,
     battle_playing: Watcher<bool>,
-    location: Watcher<Location>,
-    key_item_count: Watcher<u32>,
+    field: Watcher<Field>,
     items: Inventory,
     chaos_end: f32,
 }
@@ -488,32 +545,24 @@ impl Splits {
         Self {
             in_battle: Watcher::new(),
             battle_playing: Watcher::new(),
-            location: Watcher::new(),
-            key_item_count: Watcher::new(),
+            field: Watcher::new(),
             items: Inventory::empty(),
             chaos_end: f32::MAX,
         }
     }
 
     fn check(&mut self, data: &Data) -> Option<SplitOn> {
-        let location = data.user().location().unwrap_or_default();
-        let location = self.location.update_infallible(location);
-        if location.changed() {
-            log!(
-                "Location changed from {:?} to {:?}",
-                location.old,
-                location.current
-            );
-        }
-
         match self.battle_check(data) {
             BattleCheck::NoBattle => {}
             BattleCheck::InBattle => return None,
             BattleCheck::Split(split) => return Some(SplitOn::Monster(split)),
         }
 
-        if let Some(item) = self.inventory_check(data) {
-            return Some(SplitOn::Pickup(item));
+        let field = self.field_check(data);
+        if field.has_key_item() {
+            if let Some(item) = self.inventory_check(data) {
+                return Some(SplitOn::Pickup(item));
+            }
         }
 
         return None;
@@ -589,18 +638,15 @@ impl Splits {
         return BattleCheck::InBattle;
     }
 
+    fn field_check(&mut self, data: &Data) -> Field {
+        let field = data.user().map_id().unwrap_or_default();
+        let field = Field::from(field);
+        let field = self.field.update_infallible(field);
+        field.current
+    }
+
     fn inventory_check(&mut self, data: &Data) -> Option<Pickup> {
         let items = data.items();
-        let key_item_count = items.key_items_count();
-        let key_item_count = self.key_item_count.update_infallible(key_item_count);
-
-        if key_item_count.changed() {
-            log!(
-                "Key items changed from {} to {}",
-                key_item_count.old,
-                key_item_count.current
-            );
-        }
 
         if let Some(item) = items
             .key_item_ids()

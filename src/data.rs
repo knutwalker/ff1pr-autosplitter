@@ -19,13 +19,6 @@ pub enum BattleResult {
     Unknown = u32::MAX,
 }
 
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
-pub struct Location {
-    area_type: u32,
-    area_id: u32,
-    map_id: u32,
-}
-
 pub struct Data<'a> {
     new_game: NewGame,
     battles: BattleData,
@@ -255,24 +248,6 @@ pub struct Items<'a> {
     image: &'a Image,
 }
 
-impl Items<'_> {
-    pub fn key_items_count(&self) -> u32 {
-        let Ok(key_items) = self
-            .data
-            .key_items
-            .deref::<Pointer<Map<u32, Pointer<OwnedItemData>>>>(
-                self.process,
-                self.module,
-                self.image,
-            )
-        else {
-            return 0;
-        };
-
-        key_items.size(self.process).unwrap_or_default()
-    }
-}
-
 impl<'a> Items<'a> {
     pub fn key_item_ids(&self) -> impl Iterator<Item = u32> + 'a {
         self.data
@@ -314,34 +289,19 @@ impl<'a> Items<'a> {
 }
 
 struct UserData {
-    area_type: UnityPointer<2>,
-    area_id: UnityPointer<2>,
     map_id: UnityPointer<2>,
     igt: UnityPointer<3>,
 }
 
 impl UserData {
     fn new() -> Self {
-        let area_type = ptr_path(
-            "UserDataManager",
-            ["instance", "<CurrentAreaType>k__BackingField"],
-        );
-        let area_id = ptr_path(
-            "UserDataManager",
-            ["instance", "<CurrentAreaId>k__BackingField"],
-        );
         let map_id = ptr_path(
             "UserDataManager",
             ["instance", "<CurrentMapId>k__BackingField"],
         );
         let igt = ptr_path("UserDataManager", ["instance", "saveData", "playTime"]);
 
-        Self {
-            area_type,
-            area_id,
-            map_id,
-            igt,
-        }
+        Self { map_id, igt }
     }
 }
 
@@ -360,28 +320,11 @@ impl<'a> User<'a> {
             .unwrap_or_default()
     }
 
-    pub fn location(&self) -> Option<Location> {
-        let area_type = self
-            .data
-            .area_type
-            .deref(self.process, self.module, self.image)
-            .ok()?;
-        let area_id = self
-            .data
-            .area_id
-            .deref(self.process, self.module, self.image)
-            .ok()?;
-        let map_id = self
-            .data
+    pub fn map_id(&self) -> Option<u32> {
+        self.data
             .map_id
             .deref(self.process, self.module, self.image)
-            .ok()?;
-
-        Some(Location {
-            area_type,
-            area_id,
-            map_id,
-        })
+            .ok()
     }
 }
 
@@ -460,13 +403,6 @@ impl<T: CheckedBitPattern + 'static> Pointer<List<T>> {
     fn iter<R: MemReader>(self, reader: &R) -> Option<impl Iterator<Item = T> + '_> {
         let list = self.read(reader)?;
         Some(list.items.iter(reader)?.take(list.size as _))
-    }
-}
-
-impl<K: 'static, V: 'static> Pointer<Map<K, V>> {
-    fn size<R: MemReader>(self, reader: &R) -> Option<u32> {
-        let map = self.read(reader)?;
-        Some(map.size)
     }
 }
 
