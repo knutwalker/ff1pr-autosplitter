@@ -1,5 +1,4 @@
 use asr::{
-    arrayvec::ArrayVec,
     game_engine::unity::il2cpp::{Class, Image, Module, UnityPointer},
     Address, Address64, Process,
 };
@@ -20,16 +19,10 @@ pub enum BattleResult {
     Unknown = u32::MAX,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Inventory {
-    pub key_items: ArrayVec<u32, 16>,
-    pub vehicles: ArrayVec<u32, 4>,
-}
-
 pub struct Data<'a> {
     new_game: NewGame,
     battles: BattleData,
-    items: Items,
+    items: ItemsData,
     process: &'a Process,
     module: &'a Module,
     image: &'a Image,
@@ -40,7 +33,7 @@ impl<'a> Data<'a> {
         Self {
             new_game: NewGame::new(),
             battles: BattleData::new(),
-            items: Items::new(process, module, image).await,
+            items: ItemsData::new(process, module, image).await,
             process,
             module,
             image,
@@ -58,14 +51,19 @@ impl Data<'_> {
         }
     }
 
+    pub fn items(&self) -> Items<'_> {
+        Items {
+            data: &self.items,
+            process: self.process,
+            module: self.module,
+            image: self.image,
+        }
+    }
+
     pub fn has_fade_out(&mut self) -> bool {
         self.new_game
             .has_fade_out(self.process, self.module, self.image)
             .unwrap_or(false)
-    }
-
-    pub fn inventory(&mut self) -> Option<Inventory> {
-        self.items.inventory(self.process, self.module, self.image)
     }
 }
 
@@ -211,7 +209,7 @@ struct SaveTransportationData {
     map_id: i32,
 }
 
-struct Items {
+struct ItemsData {
     key_items: UnityPointer<2>,
     vehicles: UnityPointer<2>,
     item_data: OwnedItemDataBinding,
@@ -219,7 +217,7 @@ struct Items {
     save_transport: SaveTransportationDataBinding,
 }
 
-impl Items {
+impl ItemsData {
     async fn new(process: &Process, module: &Module, image: &Image) -> Self {
         let key_items = ptr_path("UserDataManager", ["instance", "importantOwendItems"]);
         let vehicles = ptr_path(
@@ -239,51 +237,80 @@ impl Items {
             save_transport,
         }
     }
+}
 
-    fn inventory(
-        &mut self,
-        process: &Process,
-        module: &Module,
-        image: &Image,
-    ) -> Option<Inventory> {
-        let key_items = self
+pub struct Items<'a> {
+    data: &'a ItemsData,
+    process: &'a Process,
+    module: &'a Module,
+    image: &'a Image,
+}
+
+impl Items<'_> {
+    pub fn key_items_count(&self) -> u32 {
+        let Ok(key_items) = self
+            .data
             .key_items
-            .deref::<Pointer<Map<u32, Pointer<OwnedItemData>>>>(process, module, image)
-            .ok()?;
+            .deref::<Pointer<Map<u32, Pointer<OwnedItemData>>>>(
+                self.process,
+                self.module,
+                self.image,
+            )
+        else {
+            return 0;
+        };
 
-        let key_items = key_items
-            .iter(process)?
+        key_items.size(self.process).unwrap_or_default()
+    }
+}
+
+impl<'a> Items<'a> {
+    pub fn key_item_ids(&self) -> impl Iterator<Item = u32> + 'a {
+        self.data
+            .key_items
+            .deref::<Pointer<Map<u32, Pointer<OwnedItemData>>>>(
+                self.process,
+                self.module,
+                self.image,
+            )
+            .into_iter()
+            .filter_map(|key_items| key_items.iter(self.process))
+            .flatten()
             .filter_map(|(_, item)| {
-                self.item_data
-                    .read(process, item.addr())
+                self.data
+                    .item_data
+                    .read(self.process, item.addr())
                     .ok()
                     .map(|i| i.item_id)
             })
-            .collect();
+    }
 
-        let vehicles = self
+    pub fn vehicle_ids(&self) -> impl Iterator<Item = u32> + 'a {
+        self.data
             .vehicles
-            .deref::<Pointer<List<Pointer<OwnedTransportationData>>>>(process, module, image)
-            .ok()?;
-
-        let vehicles = vehicles
-            .iter(process)?
+            .deref::<Pointer<List<Pointer<OwnedTransportationData>>>>(
+                self.process,
+                self.module,
+                self.image,
+            )
+            .into_iter()
+            .filter_map(|vehicles| vehicles.iter(self.process))
+            .flatten()
             .filter_map(|vehicle| {
-                let vehicle = self.transport_data.read(process, vehicle.addr()).ok()?;
                 let vehicle = self
+                    .data
+                    .transport_data
+                    .read(self.process, vehicle.addr())
+                    .ok()?;
+                let vehicle = self
+                    .data
                     .save_transport
-                    .read(process, vehicle.data.addr())
+                    .read(self.process, vehicle.data.addr())
                     .ok()?;
                 let _ = u32::try_from(vehicle.map_id).ok()?;
 
                 Some(vehicle.id)
             })
-            .collect();
-
-        Some(Inventory {
-            key_items,
-            vehicles,
-        })
     }
 }
 
@@ -362,6 +389,13 @@ impl<T: CheckedBitPattern + 'static> Pointer<List<T>> {
     fn iter<R: MemReader>(self, reader: &R) -> Option<impl Iterator<Item = T> + '_> {
         let list = self.read(reader)?;
         Some(list.items.iter(reader)?.take(list.size as _))
+    }
+}
+
+impl<K: 'static, V: 'static> Pointer<Map<K, V>> {
+    fn size<R: MemReader>(self, reader: &R) -> Option<u32> {
+        let map = self.read(reader)?;
+        Some(map.size)
     }
 }
 
