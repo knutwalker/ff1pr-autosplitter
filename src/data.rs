@@ -19,6 +19,13 @@ pub enum BattleResult {
     Unknown = u32::MAX,
 }
 
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
+pub struct Location {
+    area_type: u32,
+    area_id: u32,
+    map_id: u32,
+}
+
 pub struct Data<'a> {
     new_game: NewGame,
     battles: BattleData,
@@ -326,14 +333,32 @@ impl<'a> Items<'a> {
 }
 
 struct UserData {
+    area_type: UnityPointer<2>,
+    area_id: UnityPointer<2>,
+    map_id: UnityPointer<2>,
     igt: UnityPointer<3>,
 }
 
 impl UserData {
     fn new() -> Self {
+        let area_type = ptr_path(
+            "UserDataManager",
+            ["instance", "<CurrentAreaType>k__BackingField"],
+        );
+        let area_id = ptr_path(
+            "UserDataManager",
+            ["instance", "<CurrentAreaId>k__BackingField"],
+        );
+        let map_id = ptr_path(
+            "UserDataManager",
+            ["instance", "<CurrentMapId>k__BackingField"],
+        );
         let igt = ptr_path("UserDataManager", ["instance", "saveData", "playTime"]);
 
         Self {
+            area_type,
+            area_id,
+            map_id,
             igt,
         }
     }
@@ -352,6 +377,30 @@ impl<'a> User<'a> {
             .igt
             .deref(self.process, self.module, self.image)
             .unwrap_or_default()
+    }
+
+    pub fn location(&self) -> Option<Location> {
+        let area_type = self
+            .data
+            .area_type
+            .deref(self.process, self.module, self.image)
+            .ok()?;
+        let area_id = self
+            .data
+            .area_id
+            .deref(self.process, self.module, self.image)
+            .ok()?;
+        let map_id = self
+            .data
+            .map_id
+            .deref(self.process, self.module, self.image)
+            .ok()?;
+
+        Some(Location {
+            area_type,
+            area_id,
+            map_id,
+        })
     }
 }
 

@@ -12,7 +12,7 @@ use asr::{
 use core::ops::ControlFlow;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
-use crate::data::{BattleResult, Data};
+use crate::data::{BattleResult, Data, Location};
 
 mod data;
 
@@ -476,6 +476,7 @@ impl Title {
 struct Splits {
     in_battle: Watcher<bool>,
     battle_playing: Watcher<bool>,
+    location: Watcher<Location>,
     key_item_count: Watcher<u32>,
     items: Inventory,
     chaos_end: f32,
@@ -486,6 +487,7 @@ impl Splits {
         Self {
             in_battle: Watcher::new(),
             battle_playing: Watcher::new(),
+            location: Watcher::new(),
             key_item_count: Watcher::new(),
             items: Inventory::empty(),
             chaos_end: f32::MAX,
@@ -493,6 +495,16 @@ impl Splits {
     }
 
     fn check(&mut self, data: &Data) -> Option<SplitOn> {
+        let location = data.user().location().unwrap_or_default();
+        let location = self.location.update_infallible(location);
+        if location.changed() {
+            log!(
+                "Location changed from {:?} to {:?}",
+                location.old,
+                location.current
+            );
+        }
+
         match self.battle_check(data) {
             BattleCheck::NoBattle => {}
             BattleCheck::InBattle => return None,
