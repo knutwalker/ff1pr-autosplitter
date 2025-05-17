@@ -3,7 +3,8 @@
 use asr::{
     future::next_tick,
     game_engine::unity::il2cpp::Module,
-    settings::Gui,
+    settings::{gui::Title as Heading, Gui},
+    time::Duration,
     timer::{self, TimerState},
     watcher::Watcher,
     Process,
@@ -206,6 +207,13 @@ pub struct Settings {
     /// Split when defeating Chaos
     #[default = true]
     chaos: bool,
+
+    /// IGT Timer
+    _igt_title: Heading,
+
+    /// Report the IGT as "Game Time"
+    #[default = false]
+    igt: bool,
 }
 
 async fn main() {
@@ -239,6 +247,10 @@ async fn game_loop(process: &Process, settings: &mut Settings) {
 
     'outer: loop {
         settings.update();
+        if settings.igt {
+            let igt = data.user().igt();
+            timer::set_game_time(Duration::seconds_f64(igt));
+        }
         match main_loop(&data, &mut state) {
             ControlFlow::Continue(()) => continue 'outer,
             ControlFlow::Break(Action::Start) if settings.start => {
@@ -645,6 +657,8 @@ impl core::fmt::Debug for SettingsDebug<'_> {
             oxyale,
             rosetta_stone,
             chime,
+            _igt_title: _,
+            igt,
         } = self.0;
 
         f.debug_struct("Settings")
@@ -684,6 +698,7 @@ impl core::fmt::Debug for SettingsDebug<'_> {
             .field("oxyale", oxyale)
             .field("rosetta_stone", rosetta_stone)
             .field("chime", chime)
+            .field("igt", igt)
             .finish()
     }
 }

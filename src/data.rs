@@ -23,6 +23,7 @@ pub struct Data<'a> {
     new_game: NewGame,
     battles: BattleData,
     items: ItemsData,
+    user: UserData,
     process: &'a Process,
     module: &'a Module,
     image: &'a Image,
@@ -34,6 +35,7 @@ impl<'a> Data<'a> {
             new_game: NewGame::new(),
             battles: BattleData::new(),
             items: ItemsData::new(process, module, image).await,
+            user: UserData::new(),
             process,
             module,
             image,
@@ -54,6 +56,15 @@ impl Data<'_> {
     pub fn items(&self) -> Items<'_> {
         Items {
             data: &self.items,
+            process: self.process,
+            module: self.module,
+            image: self.image,
+        }
+    }
+
+    pub fn user(&self) -> User<'_> {
+        User {
+            data: &self.user,
             process: self.process,
             module: self.module,
             image: self.image,
@@ -311,6 +322,36 @@ impl<'a> Items<'a> {
 
                 Some(vehicle.id)
             })
+    }
+}
+
+struct UserData {
+    igt: UnityPointer<3>,
+}
+
+impl UserData {
+    fn new() -> Self {
+        let igt = ptr_path("UserDataManager", ["instance", "saveData", "playTime"]);
+
+        Self {
+            igt,
+        }
+    }
+}
+
+pub struct User<'a> {
+    data: &'a UserData,
+    process: &'a Process,
+    module: &'a Module,
+    image: &'a Image,
+}
+
+impl<'a> User<'a> {
+    pub fn igt(&self) -> f64 {
+        self.data
+            .igt
+            .deref(self.process, self.module, self.image)
+            .unwrap_or_default()
     }
 }
 
