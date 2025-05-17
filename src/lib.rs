@@ -69,6 +69,9 @@ pub struct Settings {
     #[default = true]
     start: bool,
 
+    /// Splits Settings
+    _splits_title: Heading,
+
     /// When to split on battles.
     battle_split: BattleSplit,
 
@@ -76,7 +79,7 @@ pub struct Settings {
     #[default = false]
     garland: bool,
 
-    /// Split when obtaining the lute
+    /// Split when obtaining the Lute
     #[default = false]
     lute: bool,
 
@@ -84,7 +87,7 @@ pub struct Settings {
     #[default = false]
     pirates: bool,
 
-    /// Split when obtaining the ship
+    /// Split when obtaining the Ship
     #[default = false]
     ship: bool,
 
@@ -96,7 +99,7 @@ pub struct Settings {
     #[default = false]
     piscodemons: bool,
 
-    /// Split when obtaining the crown
+    /// Split when obtaining the Crown
     #[default = false]
     crown: bool,
 
@@ -232,7 +235,7 @@ pub struct Settings {
     #[default = true]
     chaos: bool,
 
-    /// IGT Timer
+    /// IGT Settings
     _igt_title: Heading,
 
     /// Report the IGT as "Game Time"
@@ -739,6 +742,7 @@ struct SettingsDebug<'a>(&'a Settings);
 impl core::fmt::Debug for SettingsDebug<'_> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let Settings {
+            _splits_title,
             start,
             battle_split,
             garland,
