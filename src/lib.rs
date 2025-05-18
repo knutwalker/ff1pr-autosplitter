@@ -10,9 +10,8 @@ use asr::{
     Process,
 };
 use core::ops::ControlFlow;
-use num_enum::{IntoPrimitive, TryFromPrimitive};
 
-use crate::data::{BattleResult, Data};
+use crate::data::{BattleResult, Data, Item, Location, Monster};
 
 mod data;
 
@@ -345,187 +344,185 @@ enum Action {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 enum SplitOn {
-    Monster(Monster),
-    Pickup(Pickup),
-    Field(FieldSplit),
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, IntoPrimitive, TryFromPrimitive)]
-#[repr(u32)]
-enum Monster {
-    Garland = 350,
-    Pirates = 349,
-    Piscodemons = 88,
-    Astos = 348,
-    Vampire = 347,
-    Lich = 345,
-    EvilEye = 312,
-    Kraken = 343,
-    BlueDragon = 239,
-    Tiamat = 342,
-    Marilith = 344,
-    DeathEye = 197,
-    Lich2 = 338,
-    Marilith2 = 339,
-    Kraken2 = 340,
-    Tiamat2 = 341,
-    Chaos = 346,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-struct NoBattle;
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
-#[repr(u32)]
-enum Field {
-    WorldMap = 1,
-    CastleCornelia = 2,
-    CorneliaThrone = 3,
-    MatoyaCave = 12,
-    Pravoka = 13,
-    Elfenheim = 22,
-    ElfenheimItemShop = 24,
-    ElvenCastle = 32,
-    WesternKeep = 33,
-    Melmond = 34,
-    MelmondBMShop = 39,
-    SageCave = 40,
-    CresentLake = 41,
-    OasisShop = 59,
-    Gaia = 60,
-    Lufenia = 70,
-    MarshCave1 = 73,
-    MarshCave3 = 75,
-    EarthCave3 = 78,
-    IceCave1 = 88,
-    IceCave2 = 91,
-    Underwater5 = 103,
-    WaterfallCave = 104,
-    MirageTower3 = 107,
-    FlyingFortress = 108,
-    ChaosShrine2 = 114,
-    ChaosShrine3 = 115,
-    AirHangar = 122,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-enum FieldSplit {
+    Garland,
+    Lute,
+    Pirates,
+    Ship,
     MarshShop,
     MarshCave,
+    Piscodemons,
+    Crown,
+    Astos,
+    CrystalEye,
+    Tonic,
+    MysticKey,
+    Nitro,
     Firaga,
+    Vampire,
+    StarRuby,
+    EarthRod,
+    Lich,
+    Canoe,
+    EvilEye,
+    LeviStone,
     IceCave,
+    AirShip,
+    WarpCube,
     WaterfallCave,
+    BottledFaerie,
+    Oxyale,
+    RosettaStone,
+    Kraken,
+    Chime,
+    BlueDragon,
     FlyingFortress,
+    Tiamat,
+    Marilith,
+    DeathEye,
     ChaosShrine,
+    Lich2,
+    Marilith2,
+    Kraken2,
+    Tiamat2,
+    Chaos,
 }
 
-impl FieldSplit {
-    fn from_watcher(watcher: &Pair<Field>) -> Option<Self> {
+impl SplitOn {
+    fn from_watcher(watcher: &Pair<Location>) -> Option<Self> {
         match (watcher.old, watcher.current) {
-            (Field::ElfenheimItemShop, Field::Elfenheim) => Some(FieldSplit::MarshShop),
-            (Field::WorldMap, Field::MarshCave1) => Some(FieldSplit::MarshCave),
-            (Field::MelmondBMShop, Field::Melmond) => Some(FieldSplit::Firaga),
-            (Field::IceCave1, Field::WorldMap) => Some(FieldSplit::IceCave),
-            (Field::WaterfallCave, Field::WorldMap) => Some(FieldSplit::WaterfallCave),
-            (Field::MirageTower3, Field::FlyingFortress) => Some(FieldSplit::FlyingFortress),
-            (Field::ChaosShrine3, Field::ChaosShrine2) => Some(FieldSplit::ChaosShrine),
+            (Location::ElfenheimItemShop, Location::Elfenheim) => Some(Self::MarshShop),
+            (Location::WorldMap, Location::MarshCave1) => Some(Self::MarshCave),
+            (Location::MelmondBMShop, Location::Melmond) => Some(Self::Firaga),
+            (Location::IceCave1, Location::WorldMap) => Some(Self::IceCave),
+            (Location::WaterfallCave, Location::WorldMap) => Some(Self::WaterfallCave),
+            (Location::MirageTower3, Location::FlyingFortress) => Some(Self::FlyingFortress),
+            (Location::ChaosShrine3, Location::ChaosShrine2) => Some(Self::ChaosShrine),
             _ => None,
         }
     }
 }
 
-impl Field {
-    fn has_key_item(self) -> bool {
-        matches!(
-            self,
-            Field::CorneliaThrone
-                | Field::Pravoka
-                | Field::MarshCave3
-                | Field::WesternKeep
-                | Field::MatoyaCave
-                | Field::ElvenCastle
-                | Field::CastleCornelia
-                | Field::EarthCave3
-                | Field::SageCave
-                | Field::CresentLake
-                | Field::IceCave2
-                | Field::AirHangar
-                | Field::WaterfallCave
-                | Field::OasisShop
-                | Field::Gaia
-                | Field::Underwater5
-                | Field::Lufenia
-        )
+impl Settings {
+    fn filter(&self, split: SplitOn) -> bool {
+        let Settings {
+            start: _,
+            _splits_title,
+            battle_split: _,
+            garland,
+            lute,
+            pirates,
+            ship,
+            elfen_shop,
+            marsh_cave,
+            piscodemons,
+            crown,
+            astos,
+            crystal_eye,
+            tonic,
+            mystic_key,
+            nitro,
+            firaga,
+            vampire,
+            star_ruby,
+            earth_rod,
+            lich,
+            canoe,
+            evil_eye,
+            levi_stone,
+            ice_cave,
+            air_ship,
+            warp_cube,
+            waterfall_cave,
+            bottled_faerie,
+            oxyale,
+            rosetta_stone,
+            kraken,
+            chime,
+            blue_dragon,
+            flying_fortress,
+            tiamat,
+            marilith,
+            death_eye,
+            chaos_shrine,
+            lich2,
+            marilith2,
+            kraken2,
+            tiamat2,
+            chaos,
+            _igt_title,
+            igt: _,
+        } = self;
+        return match split {
+            SplitOn::Garland => *garland,
+            SplitOn::Pirates => *pirates,
+            SplitOn::Piscodemons => *piscodemons,
+            SplitOn::Astos => *astos,
+            SplitOn::Vampire => *vampire,
+            SplitOn::Lich => *lich,
+            SplitOn::EvilEye => *evil_eye,
+            SplitOn::Kraken => *kraken,
+            SplitOn::BlueDragon => *blue_dragon,
+            SplitOn::Tiamat => *tiamat,
+            SplitOn::Marilith => *marilith,
+            SplitOn::DeathEye => *death_eye,
+            SplitOn::Lich2 => *lich2,
+            SplitOn::Marilith2 => *marilith2,
+            SplitOn::Kraken2 => *kraken2,
+            SplitOn::Tiamat2 => *tiamat2,
+            SplitOn::Chaos => *chaos,
+            SplitOn::Lute => *lute,
+            SplitOn::Ship => *ship,
+            SplitOn::Crown => *crown,
+            SplitOn::CrystalEye => *crystal_eye,
+            SplitOn::Tonic => *tonic,
+            SplitOn::MysticKey => *mystic_key,
+            SplitOn::Nitro => *nitro,
+            SplitOn::StarRuby => *star_ruby,
+            SplitOn::EarthRod => *earth_rod,
+            SplitOn::Canoe => *canoe,
+            SplitOn::LeviStone => *levi_stone,
+            SplitOn::AirShip => *air_ship,
+            SplitOn::WarpCube => *warp_cube,
+            SplitOn::BottledFaerie => *bottled_faerie,
+            SplitOn::Oxyale => *oxyale,
+            SplitOn::RosettaStone => *rosetta_stone,
+            SplitOn::Chime => *chime,
+            SplitOn::MarshShop => *elfen_shop,
+            SplitOn::MarshCave => *marsh_cave,
+            SplitOn::Firaga => *firaga,
+            SplitOn::IceCave => *ice_cave,
+            SplitOn::WaterfallCave => *waterfall_cave,
+            SplitOn::FlyingFortress => *flying_fortress,
+            SplitOn::ChaosShrine => *chaos_shrine,
+        };
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive)]
-#[repr(u32)]
-enum Pickup {
-    Lute = 44,
-    Ship = 4,
-    Crown = 45,
-    CrystalEye = 46,
-    Tonic = 47,
-    MysticKey = 48,
-    Nitro = 49,
-    StarRuby = 52,
-    EarthRod = 53,
-    Canoe = 60,
-    LeviStone = 54,
-    AirShip = 3,
-    WarpCube = 57,
-    BottledFaerie = 58,
-    Oxyale = 59,
-    RosettaStone = 51,
-    Chime = 55,
-}
+#[derive(Copy, Clone, Debug)]
+struct NoBattle;
 
-impl Settings {
-    fn filter(&self, split: SplitOn) -> bool {
-        return match split {
-            SplitOn::Monster(Monster::Garland) => self.garland,
-            SplitOn::Monster(Monster::Pirates) => self.pirates,
-            SplitOn::Monster(Monster::Piscodemons) => self.piscodemons,
-            SplitOn::Monster(Monster::Astos) => self.astos,
-            SplitOn::Monster(Monster::Vampire) => self.vampire,
-            SplitOn::Monster(Monster::Lich) => self.lich,
-            SplitOn::Monster(Monster::EvilEye) => self.evil_eye,
-            SplitOn::Monster(Monster::Kraken) => self.kraken,
-            SplitOn::Monster(Monster::BlueDragon) => self.blue_dragon,
-            SplitOn::Monster(Monster::Tiamat) => self.tiamat,
-            SplitOn::Monster(Monster::Marilith) => self.marilith,
-            SplitOn::Monster(Monster::DeathEye) => self.death_eye,
-            SplitOn::Monster(Monster::Lich2) => self.lich2,
-            SplitOn::Monster(Monster::Marilith2) => self.marilith2,
-            SplitOn::Monster(Monster::Kraken2) => self.kraken2,
-            SplitOn::Monster(Monster::Tiamat2) => self.tiamat2,
-            SplitOn::Monster(Monster::Chaos) => self.chaos,
-            SplitOn::Pickup(Pickup::Lute) => self.lute,
-            SplitOn::Pickup(Pickup::Ship) => self.ship,
-            SplitOn::Pickup(Pickup::Crown) => self.crown,
-            SplitOn::Pickup(Pickup::CrystalEye) => self.crystal_eye,
-            SplitOn::Pickup(Pickup::Tonic) => self.tonic,
-            SplitOn::Pickup(Pickup::MysticKey) => self.mystic_key,
-            SplitOn::Pickup(Pickup::Nitro) => self.nitro,
-            SplitOn::Pickup(Pickup::StarRuby) => self.star_ruby,
-            SplitOn::Pickup(Pickup::EarthRod) => self.earth_rod,
-            SplitOn::Pickup(Pickup::Canoe) => self.canoe,
-            SplitOn::Pickup(Pickup::LeviStone) => self.levi_stone,
-            SplitOn::Pickup(Pickup::AirShip) => self.air_ship,
-            SplitOn::Pickup(Pickup::WarpCube) => self.warp_cube,
-            SplitOn::Pickup(Pickup::BottledFaerie) => self.bottled_faerie,
-            SplitOn::Pickup(Pickup::Oxyale) => self.oxyale,
-            SplitOn::Pickup(Pickup::RosettaStone) => self.rosetta_stone,
-            SplitOn::Pickup(Pickup::Chime) => self.chime,
-            SplitOn::Field(FieldSplit::MarshShop) => self.elfen_shop,
-            SplitOn::Field(FieldSplit::MarshCave) => self.marsh_cave,
-            SplitOn::Field(FieldSplit::Firaga) => self.firaga,
-            SplitOn::Field(FieldSplit::IceCave) => self.ice_cave,
-            SplitOn::Field(FieldSplit::WaterfallCave) => self.waterfall_cave,
-            SplitOn::Field(FieldSplit::FlyingFortress) => self.flying_fortress,
-            SplitOn::Field(FieldSplit::ChaosShrine) => self.chaos_shrine,
-        };
+impl Location {
+    fn has_key_item(self) -> bool {
+        matches!(
+            self,
+            Location::CorneliaThrone
+                | Location::Pravoka
+                | Location::MarshCave3
+                | Location::WesternKeep
+                | Location::MatoyaCave
+                | Location::ElvenCastle
+                | Location::CastleCornelia
+                | Location::EarthCave3
+                | Location::SageCave
+                | Location::CresentLake
+                | Location::IceCave2
+                | Location::AirHangar
+                | Location::WaterfallCave
+                | Location::OasisShop
+                | Location::Gaia
+                | Location::Underwater5
+                | Location::Lufenia
+        )
     }
 }
 
@@ -537,7 +534,7 @@ impl Inventory {
         Self(0)
     }
 
-    fn insert(&mut self, item: Pickup) -> bool {
+    fn insert(&mut self, item: Item) -> bool {
         let Ok(ord) = u8::try_from(u32::from(item)) else {
             return false;
         };
@@ -576,7 +573,7 @@ impl Title {
 struct Splits {
     in_battle: Watcher<bool>,
     battle_playing: Watcher<bool>,
-    field: Watcher<Field>,
+    location: Watcher<Location>,
     items: Inventory,
     chaos_end: f32,
 }
@@ -586,7 +583,7 @@ impl Splits {
         Self {
             in_battle: Watcher::new(),
             battle_playing: Watcher::new(),
-            field: Watcher::new(),
+            location: Watcher::new(),
             items: Inventory::empty(),
             chaos_end: f32::MAX,
         }
@@ -594,18 +591,56 @@ impl Splits {
 
     fn check(&mut self, data: &Data, split: BattleSplit) -> Option<SplitOn> {
         match self.battle_check(data, split)? {
-            Ok(split) => return Some(SplitOn::Monster(split)),
+            Ok(monster) => {
+                return Some(match monster {
+                    Monster::Garland => SplitOn::Garland,
+                    Monster::Pirates => SplitOn::Pirates,
+                    Monster::Piscodemons => SplitOn::Piscodemons,
+                    Monster::Astos => SplitOn::Astos,
+                    Monster::Vampire => SplitOn::Vampire,
+                    Monster::Lich => SplitOn::Lich,
+                    Monster::EvilEye => SplitOn::EvilEye,
+                    Monster::Kraken => SplitOn::Kraken,
+                    Monster::BlueDragon => SplitOn::BlueDragon,
+                    Monster::Tiamat => SplitOn::Tiamat,
+                    Monster::Marilith => SplitOn::Marilith,
+                    Monster::DeathEye => SplitOn::DeathEye,
+                    Monster::Lich2 => SplitOn::Lich2,
+                    Monster::Marilith2 => SplitOn::Marilith2,
+                    Monster::Kraken2 => SplitOn::Kraken2,
+                    Monster::Tiamat2 => SplitOn::Tiamat2,
+                    Monster::Chaos => SplitOn::Chaos,
+                })
+            }
             Err(_no_battle) => {}
         }
 
         let field = match self.field_check(data)? {
-            Ok(field) => return Some(SplitOn::Field(field)),
+            Ok(split) => return Some(split),
             Err(field) => field,
         };
 
         if field.has_key_item() {
             if let Some(item) = self.inventory_check(data) {
-                return Some(SplitOn::Pickup(item));
+                return Some(match item {
+                    Item::Lute => SplitOn::Lute,
+                    Item::Ship => SplitOn::Ship,
+                    Item::Crown => SplitOn::Crown,
+                    Item::CrystalEye => SplitOn::CrystalEye,
+                    Item::Tonic => SplitOn::Tonic,
+                    Item::MysticKey => SplitOn::MysticKey,
+                    Item::Nitro => SplitOn::Nitro,
+                    Item::StarRuby => SplitOn::StarRuby,
+                    Item::EarthRod => SplitOn::EarthRod,
+                    Item::Canoe => SplitOn::Canoe,
+                    Item::LeviStone => SplitOn::LeviStone,
+                    Item::AirShip => SplitOn::AirShip,
+                    Item::WarpCube => SplitOn::WarpCube,
+                    Item::BottledFaerie => SplitOn::BottledFaerie,
+                    Item::Oxyale => SplitOn::Oxyale,
+                    Item::RosettaStone => SplitOn::RosettaStone,
+                    Item::Chime => SplitOn::Chime,
+                });
             }
         }
 
@@ -624,8 +659,7 @@ impl Splits {
             return Some(Err(NoBattle));
         }
 
-        let monster = battles.encounter_id()?;
-        let monster = Monster::try_from(monster).ok()?;
+        let monster = battles.encounter()?;
 
         let playing = self.battle_playing.update_infallible(battles.playing());
 
@@ -678,34 +712,25 @@ impl Splits {
         return None;
     }
 
-    fn field_check(&mut self, data: &Data) -> Option<Result<FieldSplit, Field>> {
-        let field = data.user().map_id()?;
-        let field = Field::try_from(field).ok()?;
-        let field = self.field.update_infallible(field);
-        if let Some(field) = FieldSplit::from_watcher(field) {
+    fn field_check(&mut self, data: &Data) -> Option<Result<SplitOn, Location>> {
+        let location = data.user().location()?;
+        let location = self.location.update_infallible(location);
+        if let Some(field) = SplitOn::from_watcher(location) {
             return Some(Ok(field));
         }
 
-        Some(Err(field.current))
+        Some(Err(location.current))
     }
 
-    fn inventory_check(&mut self, data: &Data) -> Option<Pickup> {
+    fn inventory_check(&mut self, data: &Data) -> Option<Item> {
         let items = data.items();
 
-        if let Some(item) = items
-            .key_item_ids()
-            .filter_map(|i| Pickup::try_from(i).ok())
-            .find(|item| self.items.insert(*item))
-        {
+        if let Some(item) = items.key_item_ids().find(|item| self.items.insert(*item)) {
             log!("Picked up the {item:?}");
             return Some(item);
         }
 
-        if let Some(vehicle) = items
-            .vehicle_ids()
-            .filter_map(|i| Pickup::try_from(i).ok())
-            .find(|item| self.items.insert(*item))
-        {
+        if let Some(vehicle) = items.vehicle_ids().find(|item| self.items.insert(*item)) {
             log!("Obtained up the {vehicle:?}");
             return Some(vehicle);
         }
