@@ -10,7 +10,7 @@ use asr::{
     Process,
 };
 use core::ops::ControlFlow;
-use num_enum::{FromPrimitive, IntoPrimitive, TryFromPrimitive};
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 use crate::data::{BattleResult, Data};
 
@@ -392,7 +392,7 @@ struct MonsterSplit {
     end: MonsterEnd,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, FromPrimitive)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
 #[repr(u32)]
 enum Field {
     WorldMap = 1,
@@ -423,8 +423,6 @@ enum Field {
     ChaosShrine2 = 114,
     ChaosShrine3 = 115,
     AirHangar = 122,
-    #[num_enum(default)]
-    Other = u32::MAX,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -625,7 +623,7 @@ impl Splits {
             BattleCheck::Split(split) => return Some(SplitOn::Monster(split)),
         }
 
-        let field = match self.field_check(data) {
+        let field = match self.field_check(data)? {
             Ok(field) => return Some(SplitOn::Field(field)),
             Err(field) => field,
         };
@@ -709,15 +707,15 @@ impl Splits {
         return BattleCheck::InBattle;
     }
 
-    fn field_check(&mut self, data: &Data) -> Result<FieldSplit, Field> {
-        let field = data.user().map_id().unwrap_or_default();
-        let field = Field::from(field);
+    fn field_check(&mut self, data: &Data) -> Option<Result<FieldSplit, Field>> {
+        let field = data.user().map_id()?;
+        let field = Field::try_from(field).ok()?;
         let field = self.field.update_infallible(field);
         if let Some(field) = FieldSplit::from_watcher(field) {
-            return Ok(field);
+            return Some(Ok(field));
         }
 
-        Err(field.current)
+        Some(Err(field.current))
     }
 
     fn inventory_check(&mut self, data: &Data) -> Option<Pickup> {
