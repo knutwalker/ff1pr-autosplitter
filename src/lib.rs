@@ -278,7 +278,7 @@ async fn game_loop(process: &Process, settings: &mut Settings) {
     'outer: loop {
         settings.update();
         if settings.igt {
-            let igt = data.user().igt();
+            let igt = data.igt();
             timer::set_game_time(Duration::seconds_f64(igt));
         }
         match main_loop(&data, &mut state, settings.battle_split) {
@@ -652,16 +652,14 @@ impl Splits {
         data: &Data,
         split: BattleSplit,
     ) -> Option<Result<Monster, NoBattle>> {
-        let battles = data.battles();
-
-        let in_battle = self.in_battle.update_infallible(battles.active());
+        let in_battle = self.in_battle.update_infallible(data.battle_active());
         if in_battle.current == false && in_battle.unchanged() {
             return Some(Err(NoBattle));
         }
 
-        let monster = battles.encounter()?;
+        let monster = data.encounter()?;
 
-        let playing = self.battle_playing.update_infallible(battles.playing());
+        let playing = self.battle_playing.update_infallible(data.battle_playing());
 
         if in_battle.changed_to(&true) {
             log!("Encounter: {monster:?} -- Started");
@@ -684,11 +682,11 @@ impl Splits {
         }
 
         if playing.changed_to(&false) {
-            let result = battles.result();
+            let result = data.battle_result();
             log!("Encounter: {monster:?} -- {result:?}");
             if result == BattleResult::Win {
                 if monster == Monster::Chaos {
-                    let elapsed_time = battles.elapsed_time();
+                    let elapsed_time = data.battle_time();
 
                     self.chaos_end = elapsed_time + {
                         const FRAMES: f32 = 113.0;
@@ -702,7 +700,7 @@ impl Splits {
                 }
             }
         } else if playing.current == false && monster == Monster::Chaos {
-            let elapsed_time = battles.elapsed_time();
+            let elapsed_time = data.battle_time();
             if elapsed_time > self.chaos_end {
                 self.chaos_end = f32::MAX;
                 return Some(Ok(monster));
@@ -713,7 +711,7 @@ impl Splits {
     }
 
     fn field_check(&mut self, data: &Data) -> Option<Result<SplitOn, Location>> {
-        let location = data.user().location()?;
+        let location = data.location()?;
         let location = self.location.update_infallible(location);
         if let Some(field) = SplitOn::from_watcher(location) {
             return Some(Ok(field));
@@ -723,14 +721,12 @@ impl Splits {
     }
 
     fn inventory_check(&mut self, data: &Data) -> Option<Item> {
-        let items = data.items();
-
-        if let Some(item) = items.key_item_ids().find(|item| self.items.insert(*item)) {
+        if let Some(item) = data.key_item_ids().find(|item| self.items.insert(*item)) {
             log!("Picked up the {item:?}");
             return Some(item);
         }
 
-        if let Some(vehicle) = items.vehicle_ids().find(|item| self.items.insert(*item)) {
+        if let Some(vehicle) = data.vehicle_ids().find(|item| self.items.insert(*item)) {
             log!("Obtained up the {vehicle:?}");
             return Some(vehicle);
         }
