@@ -282,7 +282,7 @@ async fn game_loop(process: &Process, settings: &mut Settings) {
             let igt = data.user().igt();
             timer::set_game_time(Duration::seconds_f64(igt));
         }
-        match main_loop(&data, &mut state) {
+        match main_loop(&data, &mut state, settings.battle_split) {
             ControlFlow::Continue(()) => continue 'outer,
             ControlFlow::Break(Action::Start) if settings.start => {
                 log!("Starting timer");
@@ -305,7 +305,7 @@ async fn game_loop(process: &Process, settings: &mut Settings) {
     }
 }
 
-fn main_loop(data: &Data<'_>, state: &mut State) -> ControlFlow<Action> {
+fn main_loop(data: &Data<'_>, state: &mut State, battle_split: BattleSplit) -> ControlFlow<Action> {
     match state {
         State::NotRunning(title) => match timer::state() {
             TimerState::Running => {
@@ -326,7 +326,7 @@ fn main_loop(data: &Data<'_>, state: &mut State) -> ControlFlow<Action> {
                 return ControlFlow::Continue(());
             }
             TimerState::Running => {
-                if let Some(split) = splits.check(data) {
+                if let Some(split) = splits.check(data, battle_split) {
                     return ControlFlow::Break(Action::Split(split));
                 }
             }
@@ -345,7 +345,7 @@ enum Action {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 enum SplitOn {
-    Monster(MonsterSplit),
+    Monster(Monster),
     Pickup(Pickup),
     Field(FieldSplit),
 }
@@ -373,19 +373,7 @@ enum Monster {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-enum MonsterEnd {
-    DeathAnimation,
-    BattleEnd,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 struct NoBattle;
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-struct MonsterSplit {
-    monster: Monster,
-    end: MonsterEnd,
-}
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
 #[repr(u32)]
@@ -496,30 +484,23 @@ enum Pickup {
 impl Settings {
     fn filter(&self, split: SplitOn) -> bool {
         return match split {
-            SplitOn::Monster(MonsterSplit { monster, end }) => match (end, self.battle_split) {
-                _ if monster == Monster::Chaos => self.chaos,
-                (MonsterEnd::DeathAnimation, BattleSplit::BattleEnd) => false,
-                (MonsterEnd::BattleEnd, BattleSplit::DeathAnimation) => false,
-                _ => match monster {
-                    Monster::Garland => self.garland,
-                    Monster::Pirates => self.pirates,
-                    Monster::Piscodemons => self.piscodemons,
-                    Monster::Astos => self.astos,
-                    Monster::Vampire => self.vampire,
-                    Monster::Lich => self.lich,
-                    Monster::EvilEye => self.evil_eye,
-                    Monster::Kraken => self.kraken,
-                    Monster::BlueDragon => self.blue_dragon,
-                    Monster::Tiamat => self.tiamat,
-                    Monster::Marilith => self.marilith,
-                    Monster::DeathEye => self.death_eye,
-                    Monster::Lich2 => self.lich2,
-                    Monster::Marilith2 => self.marilith2,
-                    Monster::Kraken2 => self.kraken2,
-                    Monster::Tiamat2 => self.tiamat2,
-                    Monster::Chaos => self.chaos,
-                },
-            },
+            SplitOn::Monster(Monster::Garland) => self.garland,
+            SplitOn::Monster(Monster::Pirates) => self.pirates,
+            SplitOn::Monster(Monster::Piscodemons) => self.piscodemons,
+            SplitOn::Monster(Monster::Astos) => self.astos,
+            SplitOn::Monster(Monster::Vampire) => self.vampire,
+            SplitOn::Monster(Monster::Lich) => self.lich,
+            SplitOn::Monster(Monster::EvilEye) => self.evil_eye,
+            SplitOn::Monster(Monster::Kraken) => self.kraken,
+            SplitOn::Monster(Monster::BlueDragon) => self.blue_dragon,
+            SplitOn::Monster(Monster::Tiamat) => self.tiamat,
+            SplitOn::Monster(Monster::Marilith) => self.marilith,
+            SplitOn::Monster(Monster::DeathEye) => self.death_eye,
+            SplitOn::Monster(Monster::Lich2) => self.lich2,
+            SplitOn::Monster(Monster::Marilith2) => self.marilith2,
+            SplitOn::Monster(Monster::Kraken2) => self.kraken2,
+            SplitOn::Monster(Monster::Tiamat2) => self.tiamat2,
+            SplitOn::Monster(Monster::Chaos) => self.chaos,
             SplitOn::Pickup(Pickup::Lute) => self.lute,
             SplitOn::Pickup(Pickup::Ship) => self.ship,
             SplitOn::Pickup(Pickup::Crown) => self.crown,
@@ -612,7 +593,7 @@ impl Splits {
     }
 
     fn check(&mut self, data: &Data, split: BattleSplit) -> Option<SplitOn> {
-        match self.battle_check(data)? {
+        match self.battle_check(data, split)? {
             Ok(split) => return Some(SplitOn::Monster(split)),
             Err(_no_battle) => {}
         }
@@ -631,7 +612,11 @@ impl Splits {
         return None;
     }
 
-    fn battle_check(&mut self, data: &Data) -> Option<Result<MonsterSplit, NoBattle>> {
+    fn battle_check(
+        &mut self,
+        data: &Data,
+        split: BattleSplit,
+    ) -> Option<Result<Monster, NoBattle>> {
         let battles = data.battles();
 
         let in_battle = self.in_battle.update_infallible(battles.active());
@@ -656,12 +641,11 @@ impl Splits {
             }
 
             log!("Encounter: {monster:?} -- Ended");
-            // Chaos is always split on animation
-            if monster != Monster::Chaos {
-                return Some(Ok(MonsterSplit {
-                    monster,
-                    end: MonsterEnd::BattleEnd,
-                }));
+            if split == BattleSplit::BattleEnd {
+                // Chaos is always split on animation
+                if monster != Monster::Chaos {
+                    return Some(Ok(monster));
+                }
             }
         }
 
@@ -679,21 +663,15 @@ impl Splits {
 
                         TIME
                     };
-                } else {
-                    return Some(Ok(MonsterSplit {
-                        monster,
-                        end: MonsterEnd::DeathAnimation,
-                    }));
+                } else if split == BattleSplit::DeathAnimation {
+                    return Some(Ok(monster));
                 }
             }
         } else if playing.current == false && monster == Monster::Chaos {
             let elapsed_time = battles.elapsed_time();
             if elapsed_time > self.chaos_end {
                 self.chaos_end = f32::MAX;
-                return Some(Ok(MonsterSplit {
-                    monster,
-                    end: MonsterEnd::DeathAnimation,
-                }));
+                return Some(Ok(monster));
             }
         }
 
