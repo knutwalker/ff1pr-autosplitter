@@ -121,59 +121,17 @@ impl<'a> Data<'a> {
 }
 
 impl Data<'_> {
-    pub fn battles(&self) -> Battles<'_> {
-        Battles {
-            data: &self.battles,
-            process: self.process,
-            module: self.module,
-            image: self.image,
-        }
-    }
-
-    pub fn items(&self) -> Items<'_> {
-        Items {
-            data: &self.items,
-            process: self.process,
-            module: self.module,
-            image: self.image,
-        }
-    }
-
-    pub fn user(&self) -> User<'_> {
-        User {
-            data: &self.user,
-            process: self.process,
-            module: self.module,
-            image: self.image,
-        }
-    }
-
-    pub fn has_fade_out(&self) -> bool {
-        self.new_game
-            .has_fade_out(self.process, self.module, self.image)
-            .unwrap_or(false)
-    }
-}
-
-pub struct Battles<'a> {
-    data: &'a BattleData,
-    process: &'a Process,
-    module: &'a Module,
-    image: &'a Image,
-}
-
-impl Battles<'_> {
     const ENCOUNTER_ID_INDEX: usize = 0;
 
-    pub fn active(&self) -> bool {
-        self.data
+    pub fn battle_active(&self) -> bool {
+        self.battles
             .active
             .deref(self.process, self.module, self.image)
             .unwrap_or_default()
     }
 
     pub fn encounter(&self) -> Option<Monster> {
-        self.data
+        self.battles
             .monster_party
             .deref::<Pointer<Array<_>>>(self.process, self.module, self.image)
             .ok()?
@@ -181,38 +139,29 @@ impl Battles<'_> {
             .and_then(|id| Monster::try_from_primitive(id).ok())
     }
 
-    pub fn playing(&self) -> bool {
-        self.data
+    pub fn battle_playing(&self) -> bool {
+        self.battles
             .is_playing
             .deref(self.process, self.module, self.image)
             .unwrap_or_default()
     }
 
-    pub fn result(&self) -> BattleResult {
-        self.data
+    pub fn battle_result(&self) -> BattleResult {
+        self.battles
             .end_result
             .deref::<u32>(self.process, self.module, self.image)
             .map_or(BattleResult::Unknown, BattleResult::from)
     }
 
-    pub fn elapsed_time(&self) -> f32 {
-        self.data
+    pub fn battle_time(&self) -> f32 {
+        self.battles
             .elapsed_time
             .deref(self.process, self.module, self.image)
             .unwrap_or_default()
     }
-}
 
-pub struct Items<'a> {
-    data: &'a ItemsData,
-    process: &'a Process,
-    module: &'a Module,
-    image: &'a Image,
-}
-
-impl<'a> Items<'a> {
-    pub fn key_item_ids(&self) -> impl Iterator<Item = Item> + 'a {
-        self.data
+    pub fn key_item_ids(&self) -> impl Iterator<Item = Item> + '_ {
+        self.items
             .key_items
             .deref::<Pointer<Map<u32, Pointer<()>>>>(self.process, self.module, self.image)
             .into_iter()
@@ -222,8 +171,8 @@ impl<'a> Items<'a> {
             .filter_map(|item_id| Item::try_from_primitive(item_id).ok())
     }
 
-    pub fn vehicle_ids(&self) -> impl Iterator<Item = Item> + 'a {
-        self.data
+    pub fn vehicle_ids(&self) -> impl Iterator<Item = Item> + '_ {
+        self.items
             .vehicles
             .deref::<Pointer<List<Pointer<OwnedTransportationData>>>>(
                 self.process,
@@ -235,12 +184,12 @@ impl<'a> Items<'a> {
             .flatten()
             .filter_map(|vehicle| {
                 let vehicle = self
-                    .data
+                    .items
                     .transport_data
                     .read(self.process, vehicle.addr())
                     .ok()?;
                 let vehicle = self
-                    .data
+                    .items
                     .save_transport
                     .read(self.process, vehicle.data.addr())
                     .ok()?;
@@ -251,29 +200,26 @@ impl<'a> Items<'a> {
                 Some(item)
             })
     }
-}
 
-pub struct User<'a> {
-    data: &'a UserData,
-    process: &'a Process,
-    module: &'a Module,
-    image: &'a Image,
-}
-
-impl<'a> User<'a> {
     pub fn igt(&self) -> f64 {
-        self.data
+        self.user
             .igt
             .deref(self.process, self.module, self.image)
             .unwrap_or_default()
     }
 
     pub fn location(&self) -> Option<Location> {
-        self.data
+        self.user
             .map_id
             .deref(self.process, self.module, self.image)
             .ok()
             .and_then(|id| Location::try_from_primitive(id).ok())
+    }
+
+    pub fn has_fade_out(&self) -> bool {
+        self.new_game
+            .has_fade_out(self.process, self.module, self.image)
+            .unwrap_or(false)
     }
 }
 
