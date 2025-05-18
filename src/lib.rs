@@ -405,7 +405,7 @@ enum Field {
     ElvenCastle = 32,
     WesternKeep = 33,
     Melmond = 34,
-    MelmondShop = 39,
+    MelmondBMShop = 39,
     SageCave = 40,
     CresentLake = 41,
     OasisShop = 59,
@@ -443,7 +443,7 @@ impl FieldSplit {
         match (watcher.old, watcher.current) {
             (Field::ElfenheimItemShop, Field::Elfenheim) => Some(FieldSplit::MarshShop),
             (Field::WorldMap, Field::MarshCave1) => Some(FieldSplit::MarshCave),
-            (Field::MelmondShop, Field::Melmond) => Some(FieldSplit::Firaga),
+            (Field::MelmondBMShop, Field::Melmond) => Some(FieldSplit::Firaga),
             (Field::IceCave1, Field::WorldMap) => Some(FieldSplit::IceCave),
             (Field::WaterfallCave, Field::WorldMap) => Some(FieldSplit::WaterfallCave),
             (Field::MirageTower3, Field::FlyingFortress) => Some(FieldSplit::FlyingFortress),
