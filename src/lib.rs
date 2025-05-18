@@ -91,6 +91,10 @@ pub struct Settings {
     #[default = false]
     ship: bool,
 
+    /// Split when done with shopping in Elfenheim
+    #[default = false]
+    elfen_shop: bool,
+
     /// Split when entering the Marsh Cave
     #[default = false]
     marsh_cave: bool,
@@ -396,6 +400,8 @@ enum Field {
     CorneliaThrone = 3,
     MatoyaCave = 12,
     Pravoka = 13,
+    Elfenheim = 22,
+    ElfenheimItemShop = 24,
     ElvenCastle = 32,
     WesternKeep = 33,
     Melmond = 34,
@@ -423,6 +429,7 @@ enum Field {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 enum FieldSplit {
+    MarshShop,
     MarshCave,
     Firaga,
     IceCave,
@@ -434,6 +441,7 @@ enum FieldSplit {
 impl FieldSplit {
     fn from_watcher(watcher: &Pair<Field>) -> Option<Self> {
         match (watcher.old, watcher.current) {
+            (Field::ElfenheimItemShop, Field::Elfenheim) => Some(FieldSplit::MarshShop),
             (Field::WorldMap, Field::MarshCave1) => Some(FieldSplit::MarshCave),
             (Field::MelmondShop, Field::Melmond) => Some(FieldSplit::Firaga),
             (Field::IceCave1, Field::WorldMap) => Some(FieldSplit::IceCave),
@@ -536,6 +544,7 @@ impl Settings {
             SplitOn::Pickup(Pickup::Oxyale) => self.oxyale,
             SplitOn::Pickup(Pickup::RosettaStone) => self.rosetta_stone,
             SplitOn::Pickup(Pickup::Chime) => self.chime,
+            SplitOn::Field(FieldSplit::MarshShop) => self.elfen_shop,
             SplitOn::Field(FieldSplit::MarshCave) => self.marsh_cave,
             SplitOn::Field(FieldSplit::Firaga) => self.firaga,
             SplitOn::Field(FieldSplit::IceCave) => self.ice_cave,
@@ -749,6 +758,7 @@ impl core::fmt::Debug for SettingsDebug<'_> {
             lute,
             pirates,
             ship,
+            elfen_shop,
             marsh_cave,
             piscodemons,
             crown,
@@ -796,6 +806,7 @@ impl core::fmt::Debug for SettingsDebug<'_> {
             .field("lute", lute)
             .field("pirates", pirates)
             .field("ship", ship)
+            .field("elfen_shop", elfen_shop)
             .field("marsh_cave", marsh_cave)
             .field("piscodemons", piscodemons)
             .field("crown", crown)
