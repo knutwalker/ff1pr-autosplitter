@@ -378,13 +378,8 @@ enum MonsterEnd {
     BattleEnd,
 }
 
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
-enum BattleCheck {
-    #[default]
-    NoBattle,
-    InBattle,
-    Split(MonsterSplit),
-}
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+struct NoBattle;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 struct MonsterSplit {
@@ -616,11 +611,10 @@ impl Splits {
         }
     }
 
-    fn check(&mut self, data: &Data) -> Option<SplitOn> {
-        match self.battle_check(data) {
-            BattleCheck::NoBattle => {}
-            BattleCheck::InBattle => return None,
-            BattleCheck::Split(split) => return Some(SplitOn::Monster(split)),
+    fn check(&mut self, data: &Data, split: BattleSplit) -> Option<SplitOn> {
+        match self.battle_check(data)? {
+            Ok(split) => return Some(SplitOn::Monster(split)),
+            Err(_no_battle) => {}
         }
 
         let field = match self.field_check(data)? {
@@ -637,74 +631,73 @@ impl Splits {
         return None;
     }
 
-    fn battle_check(&mut self, data: &Data) -> BattleCheck {
+    fn battle_check(&mut self, data: &Data) -> Option<Result<MonsterSplit, NoBattle>> {
         let battles = data.battles();
 
         let in_battle = self.in_battle.update_infallible(battles.active());
         if in_battle.current == false && in_battle.unchanged() {
-            return BattleCheck::NoBattle;
+            return Some(Err(NoBattle));
         }
 
-        let Some(monster) = battles
-            .encounter_id()
-            .and_then(|id| Monster::try_from(id).ok())
-        else {
-            return BattleCheck::InBattle;
-        };
+        let monster = battles.encounter_id()?;
+        let monster = Monster::try_from(monster).ok()?;
 
         let playing = self.battle_playing.update_infallible(battles.playing());
 
         if in_battle.changed_to(&true) {
             log!("Encounter: {monster:?} -- Started");
-            return BattleCheck::InBattle;
+            return None;
         }
 
         if in_battle.changed_to(&false) {
             if playing.changed_to(&false) {
                 log!("Battle reset detected, no split!");
-                return BattleCheck::InBattle;
+                return None;
             }
 
             log!("Encounter: {monster:?} -- Ended");
-            return BattleCheck::Split(MonsterSplit {
-                monster,
-                end: MonsterEnd::BattleEnd,
-            });
+            // Chaos is always split on animation
+            if monster != Monster::Chaos {
+                return Some(Ok(MonsterSplit {
+                    monster,
+                    end: MonsterEnd::BattleEnd,
+                }));
+            }
         }
 
         if playing.changed_to(&false) {
             let result = battles.result();
             log!("Encounter: {monster:?} -- {result:?}");
             if result == BattleResult::Win {
-                if monster != Monster::Chaos {
-                    return BattleCheck::Split(MonsterSplit {
+                if monster == Monster::Chaos {
+                    let elapsed_time = battles.elapsed_time();
+
+                    self.chaos_end = elapsed_time + {
+                        const FRAMES: f32 = 113.0;
+                        const FPS: f32 = 60.0;
+                        const TIME: f32 = FRAMES / FPS;
+
+                        TIME
+                    };
+                } else {
+                    return Some(Ok(MonsterSplit {
                         monster,
                         end: MonsterEnd::DeathAnimation,
-                    });
+                    }));
                 }
-
-                let elapsed_time = battles.elapsed_time();
-
-                self.chaos_end = elapsed_time + {
-                    const FRAMES: f32 = 113.0;
-                    const FPS: f32 = 60.0;
-                    const TIME: f32 = FRAMES / FPS;
-
-                    TIME
-                };
             }
         } else if playing.current == false && monster == Monster::Chaos {
             let elapsed_time = battles.elapsed_time();
             if elapsed_time > self.chaos_end {
                 self.chaos_end = f32::MAX;
-                return BattleCheck::Split(MonsterSplit {
+                return Some(Ok(MonsterSplit {
                     monster,
                     end: MonsterEnd::DeathAnimation,
-                });
+                }));
             }
         }
 
-        return BattleCheck::InBattle;
+        return None;
     }
 
     fn field_check(&mut self, data: &Data) -> Option<Result<FieldSplit, Field>> {
