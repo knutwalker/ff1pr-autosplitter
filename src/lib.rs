@@ -9,7 +9,8 @@ use asr::{
     watcher::{Pair, Watcher},
     Process,
 };
-use core::ops::ControlFlow;
+use core::{marker::PhantomData, ops::ControlFlow};
+use num_enum::IntoPrimitive;
 
 use crate::data::{BattleResult, Data, Item, Location, Monster};
 
@@ -342,7 +343,8 @@ enum Action {
     Split(SplitOn),
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, IntoPrimitive)]
+#[repr(u8)]
 enum SplitOn {
     Garland,
     Lute,
@@ -527,15 +529,19 @@ impl Location {
 }
 
 #[derive(Debug, Clone, Copy)]
-struct Inventory(u64);
+struct EnumSet<T>(u64, PhantomData<T>);
 
-impl Inventory {
+trait EnumSetMember {
+    fn ordinal(&self) -> Option<u8>;
+}
+
+impl<T: EnumSetMember> EnumSet<T> {
     const fn empty() -> Self {
-        Self(0)
+        Self(0, PhantomData)
     }
 
-    fn insert(&mut self, item: Item) -> bool {
-        let Ok(ord) = u8::try_from(u32::from(item)) else {
+    fn insert(&mut self, item: &T) -> bool {
+        let Some(ord) = item.ordinal() else {
             return false;
         };
         if ord >= 64 {
@@ -548,6 +554,15 @@ impl Inventory {
         return previous == 0;
     }
 }
+
+impl EnumSetMember for SplitOn {
+    fn ordinal(&self) -> Option<u8> {
+        Some(u8::from(*self))
+    }
+}
+
+type Inventory = EnumSet<Item>;
+type SeenSplits = EnumSet<SplitOn>;
 
 struct Title {
     fade_out: Watcher<bool>,
@@ -575,6 +590,7 @@ struct Splits {
     battle_playing: Watcher<bool>,
     location: Watcher<Location>,
     items: Inventory,
+    seen: SeenSplits,
     chaos_end: f32,
 }
 
@@ -585,11 +601,17 @@ impl Splits {
             battle_playing: Watcher::new(),
             location: Watcher::new(),
             items: Inventory::empty(),
+            seen: SeenSplits::empty(),
             chaos_end: f32::MAX,
         }
     }
 
     fn check(&mut self, data: &Data, split: BattleSplit) -> Option<SplitOn> {
+        let split = self.split_check(data, split)?;
+        self.seen.insert(&split).then_some(split)
+    }
+
+    fn split_check(&mut self, data: &Data, split: BattleSplit) -> Option<SplitOn> {
         match self.battle_check(data, split)? {
             Ok(monster) => {
                 return Some(match monster {
@@ -721,12 +743,12 @@ impl Splits {
     }
 
     fn inventory_check(&mut self, data: &Data) -> Option<Item> {
-        if let Some(item) = data.key_item_ids().find(|item| self.items.insert(*item)) {
+        if let Some(item) = data.key_item_ids().find(|item| self.items.insert(item)) {
             log!("Picked up the {item:?}");
             return Some(item);
         }
 
-        if let Some(vehicle) = data.vehicle_ids().find(|item| self.items.insert(*item)) {
+        if let Some(vehicle) = data.vehicle_ids().find(|item| self.items.insert(item)) {
             log!("Obtained up the {vehicle:?}");
             return Some(vehicle);
         }

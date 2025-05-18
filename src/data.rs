@@ -96,6 +96,12 @@ pub enum Item {
     Chime = 55,
 }
 
+impl super::EnumSetMember for Item {
+    fn ordinal(&self) -> Option<u8> {
+        u8::try_from(u32::from(*self)).ok()
+    }
+}
+
 pub struct Data<'a> {
     new_game: NewGame,
     battles: BattleData,
