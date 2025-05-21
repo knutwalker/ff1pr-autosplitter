@@ -711,7 +711,7 @@ impl Splits {
                     let elapsed_time = data.battle_time();
 
                     self.chaos_end = elapsed_time + {
-                        const FRAMES: f32 = 113.0;
+                        const FRAMES: f32 = 114.0;
                         const FPS: f32 = 60.0;
                         const TIME: f32 = FRAMES / FPS;
 
