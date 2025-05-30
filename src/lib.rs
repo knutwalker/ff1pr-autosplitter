@@ -64,6 +64,9 @@ pub enum BattleSplit {
 
 #[derive(Gui)]
 pub struct Settings {
+    /// General Settings
+    _general: Heading,
+
     /// Start the timer on party confirmation
     #[default = true]
     start: bool,
@@ -71,10 +74,14 @@ pub struct Settings {
     /// When to split on battles.
     battle_split: BattleSplit,
 
-    /// Splits: Only enable the settings that match what you have in your splits.
-    /// You don't need all. Any additional split you want to do needs to be split
-    /// manually.
-    _splits_title: Heading,
+    /// Splits: Only enable the settings that match your splits.
+    _splits_heading1: Heading,
+
+    /// You don't need to all, only what you want to split.
+    _splits_heading2: Heading,
+
+    /// Anything else not mentioned here can be split manually.
+    _splits_heading3: Heading,
 
     /// Split when defeating Garland
     #[default = false]
@@ -397,9 +404,12 @@ impl SplitOn {
 impl Settings {
     fn filter(&self, split: SplitOn) -> bool {
         let Settings {
+            _general,
             start: _,
-            _splits_title,
             battle_split: _,
+            _splits_heading1,
+            _splits_heading2,
+            _splits_heading3,
             garland,
             lute,
             pirates,
@@ -751,9 +761,12 @@ struct SettingsDebug<'a>(&'a Settings);
 impl core::fmt::Debug for SettingsDebug<'_> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let Settings {
-            _splits_title,
+            _general,
             start,
             battle_split,
+            _splits_heading1,
+            _splits_heading2,
+            _splits_heading3,
             garland,
             lute,
             pirates,
