@@ -207,13 +207,6 @@ impl Data<'_> {
             })
     }
 
-    pub fn igt(&self) -> f64 {
-        self.user
-            .igt
-            .deref(self.process, self.module, self.image)
-            .unwrap_or_default()
-    }
-
     pub fn location(&self) -> Option<Location> {
         self.user
             .map_id
@@ -344,7 +337,6 @@ impl ItemsData {
 
 struct UserData {
     map_id: UnityPointer<2>,
-    igt: UnityPointer<3>,
 }
 
 impl UserData {
@@ -353,9 +345,8 @@ impl UserData {
             "UserDataManager",
             ["instance", "<CurrentMapId>k__BackingField"],
         );
-        let igt = ptr_path("UserDataManager", ["instance", "saveData", "playTime"]);
 
-        Self { map_id, igt }
+        Self { map_id }
     }
 }
 

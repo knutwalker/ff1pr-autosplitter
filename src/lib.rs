@@ -4,7 +4,6 @@ use asr::{
     future::next_tick,
     game_engine::unity::il2cpp::Module,
     settings::{gui::Title as Heading, Gui},
-    time::Duration,
     timer::{self, TimerState},
     watcher::{Pair, Watcher},
     Process,
@@ -240,13 +239,6 @@ pub struct Settings {
     /// Split when defeating Chaos
     #[default = true]
     chaos: bool,
-
-    /// IGT Settings
-    _igt_title: Heading,
-
-    /// Report the IGT as "Game Time"
-    #[default = false]
-    igt: bool,
 }
 
 async fn main() {
@@ -280,10 +272,6 @@ async fn game_loop(process: &Process, settings: &mut Settings) {
 
     'outer: loop {
         settings.update();
-        if settings.igt {
-            let igt = data.igt();
-            timer::set_game_time(Duration::seconds_f64(igt));
-        }
         match main_loop(&data, &mut state, settings.battle_split) {
             ControlFlow::Continue(()) => continue 'outer,
             ControlFlow::Break(Action::Start) if settings.start => {
@@ -453,8 +441,6 @@ impl Settings {
             kraken2,
             tiamat2,
             chaos,
-            _igt_title,
-            igt: _,
         } = self;
         return match split {
             SplitOn::Garland => *garland,
@@ -809,8 +795,6 @@ impl core::fmt::Debug for SettingsDebug<'_> {
             kraken2,
             tiamat2,
             chaos,
-            _igt_title,
-            igt,
         } = self.0;
 
         f.debug_struct("Settings")
@@ -857,7 +841,6 @@ impl core::fmt::Debug for SettingsDebug<'_> {
             .field("kraken2", kraken2)
             .field("tiamat2", tiamat2)
             .field("chaos", chaos)
-            .field("igt", igt)
             .finish()
     }
 }
