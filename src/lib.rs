@@ -69,11 +69,13 @@ pub struct Settings {
     #[default = true]
     start: bool,
 
-    /// Splits Settings
-    _splits_title: Heading,
-
     /// When to split on battles.
     battle_split: BattleSplit,
+
+    /// Splits: Only enable the settings that match what you have in your splits.
+    /// You don't need all. Any additional split you want to do needs to be split
+    /// manually.
+    _splits_title: Heading,
 
     /// Split when defeating Garland
     #[default = false]
