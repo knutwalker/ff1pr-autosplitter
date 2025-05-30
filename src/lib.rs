@@ -71,6 +71,10 @@ pub struct Settings {
     #[default = true]
     start: bool,
 
+    /// Split when defeating Chaos
+    #[default = true]
+    chaos: bool,
+
     /// When to split on battles.
     battle_split: BattleSplit,
 
@@ -242,10 +246,6 @@ pub struct Settings {
     /// Split when defeating Tiamat 2
     #[default = false]
     tiamat2: bool,
-
-    /// Split when defeating Chaos
-    #[default = true]
-    chaos: bool,
 }
 
 async fn main() {
