@@ -56,7 +56,7 @@ pub enum Location {
     Melmond = 34,
     MelmondBMShop = 39,
     SageCave = 40,
-    CresentLake = 41,
+    CrescentLake = 41,
     OasisShop = 59,
     Gaia = 60,
     Lufenia = 70,
