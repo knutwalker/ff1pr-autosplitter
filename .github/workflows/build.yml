@@ -31,7 +31,7 @@ jobs:
 
       - name: Release
         if: github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v2.2.2
         with:
           files: target/wasm32-unknown-unknown/release/ff1pr_autosplitter.wasm
           name: Latest
