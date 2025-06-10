@@ -716,9 +716,8 @@ impl Splits {
                     self.chaos_end = elapsed_time + {
                         const FRAMES: f32 = 120.0;
                         const FPS: f32 = 60.0;
-                        const TIME: f32 = FRAMES / FPS;
-
-                        TIME
+                        // 2 seconds of "battle igt"
+                        FRAMES / FPS
                     };
                 } else if split == BattleSplit::DeathAnimation {
                     return Some(Ok(monster));
