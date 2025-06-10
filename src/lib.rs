@@ -591,6 +591,7 @@ impl Title {
 struct Splits {
     in_battle: Watcher<bool>,
     battle_playing: Watcher<bool>,
+    battle_result: Watcher<BattleResult>,
     location: Watcher<Location>,
     items: Inventory,
     seen: SeenSplits,
@@ -602,6 +603,7 @@ impl Splits {
         Self {
             in_battle: Watcher::new(),
             battle_playing: Watcher::new(),
+            battle_result: Watcher::new(),
             location: Watcher::new(),
             items: Inventory::empty(),
             seen: SeenSplits::empty(),
@@ -685,6 +687,8 @@ impl Splits {
         let monster = data.encounter()?;
 
         let playing = self.battle_playing.update_infallible(data.battle_playing());
+        let result = data.battle_result();
+        let result = self.battle_result.update_infallible(result);
 
         if in_battle.changed_to(&true) {
             log!("Encounter: {monster:?} -- Started");
@@ -707,7 +711,7 @@ impl Splits {
         }
 
         if playing.changed_to(&false) {
-            let result = data.battle_result();
+            let result = result.current;
             log!("Encounter: {monster:?} -- {result:?}");
             if result == BattleResult::Win {
                 if monster == Monster::Chaos {
