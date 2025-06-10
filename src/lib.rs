@@ -139,6 +139,10 @@ pub struct Settings {
     #[default = false]
     nitro: bool,
 
+    // Split after shopping in Cornelia
+    #[default = false]
+    cornelia_shop: bool,
+
     /// Split when having bought Firaga
     #[default = false]
     firaga: bool,
@@ -158,6 +162,10 @@ pub struct Settings {
     /// Split when defeating Lich
     #[default = false]
     lich: bool,
+
+    // Split after shopping in Crescent Lake
+    #[default = false]
+    crescent_lake_shop: bool,
 
     /// Split when obtaining the Canoe
     #[default = false]
@@ -191,9 +199,17 @@ pub struct Settings {
     #[default = false]
     bottled_faerie: bool,
 
+    // Split after shopping in Gaia
+    #[default = false]
+    gaia_shop: bool,
+
     /// Split when obtaining the Oxyale
     #[default = false]
     oxyale: bool,
+
+    // Split after shopping in Onrac
+    #[default = false]
+    onrac_shop: bool,
 
     /// Split when obtaining the Rosetta Stone
     #[default = false]
@@ -361,11 +377,13 @@ enum SplitOn {
     Tonic,
     MysticKey,
     Nitro,
+    CorneliaItemShop,
     Firaga,
     Vampire,
     StarRuby,
     EarthRod,
     Lich,
+    CrescentLakeShop,
     Canoe,
     EvilEye,
     LeviStone,
@@ -374,7 +392,9 @@ enum SplitOn {
     WarpCube,
     WaterfallCave,
     BottledFaerie,
+    GaiaItemShop,
     Oxyale,
+    OnracItemShop,
     RosettaStone,
     Kraken,
     Chime,
@@ -396,9 +416,13 @@ impl SplitOn {
         match (watcher.old, watcher.current) {
             (Location::ElfenheimItemShop, Location::Elfenheim) => Some(Self::ElfenheimItemShop),
             (Location::WorldMap, Location::MarshCave1) => Some(Self::EnterMarshCave),
+            (Location::CorneliaItemShop, Location::Cornelia) => Some(Self::CorneliaItemShop),
             (Location::MelmondBMShop, Location::Melmond) => Some(Self::Firaga),
+            (Location::CLItemShop, Location::CrescentLake) => Some(Self::CrescentLakeShop),
             (Location::IceCave1, Location::WorldMap) => Some(Self::IceCave),
             (Location::WaterfallCave, Location::WorldMap) => Some(Self::WaterfallCave),
+            (Location::GaiaItemShop, Location::Gaia) => Some(Self::GaiaItemShop),
+            (Location::OnracItemShop, Location::Onrac) => Some(Self::OnracItemShop),
             (Location::MirageTower3, Location::FlyingFortress) => Some(Self::FlyingFortress),
             (Location::ChaosShrine3, Location::ChaosShrine2) => Some(Self::ChaosShrine),
             _ => None,
@@ -428,11 +452,13 @@ impl Settings {
             tonic,
             mystic_key,
             nitro,
+            cornelia_shop,
             firaga,
             vampire,
             star_ruby,
             earth_rod,
             lich,
+            crescent_lake_shop,
             canoe,
             evil_eye,
             levi_stone,
@@ -441,7 +467,9 @@ impl Settings {
             warp_cube,
             waterfall_cave,
             bottled_faerie,
+            gaia_shop,
             oxyale,
+            onrac_shop,
             rosetta_stone,
             kraken,
             chime,
@@ -471,11 +499,13 @@ impl Settings {
             SplitOn::Tonic => *tonic,
             SplitOn::MysticKey => *mystic_key,
             SplitOn::Nitro => *nitro,
+            SplitOn::CorneliaItemShop => *cornelia_shop,
             SplitOn::Firaga => *firaga,
             SplitOn::Vampire => *vampire,
             SplitOn::StarRuby => *star_ruby,
             SplitOn::EarthRod => *earth_rod,
             SplitOn::Lich => *lich,
+            SplitOn::CrescentLakeShop => *crescent_lake_shop,
             SplitOn::Canoe => *canoe,
             SplitOn::EvilEye => *evil_eye,
             SplitOn::LeviStone => *levi_stone,
@@ -484,7 +514,9 @@ impl Settings {
             SplitOn::WarpCube => *warp_cube,
             SplitOn::WaterfallCave => *waterfall_cave,
             SplitOn::BottledFaerie => *bottled_faerie,
+            SplitOn::GaiaItemShop => *gaia_shop,
             SplitOn::Oxyale => *oxyale,
+            SplitOn::OnracItemShop => *onrac_shop,
             SplitOn::RosettaStone => *rosetta_stone,
             SplitOn::Kraken => *kraken,
             SplitOn::Chime => *chime,
@@ -796,11 +828,13 @@ impl core::fmt::Debug for SettingsDebug<'_> {
             tonic,
             mystic_key,
             nitro,
+            cornelia_shop,
             firaga,
             vampire,
             star_ruby,
             earth_rod,
             lich,
+            crescent_lake_shop,
             canoe,
             evil_eye,
             levi_stone,
@@ -809,7 +843,9 @@ impl core::fmt::Debug for SettingsDebug<'_> {
             warp_cube,
             waterfall_cave,
             bottled_faerie,
+            gaia_shop,
             oxyale,
+            onrac_shop,
             rosetta_stone,
             kraken,
             chime,
@@ -842,11 +878,13 @@ impl core::fmt::Debug for SettingsDebug<'_> {
             .field("tonic", tonic)
             .field("mystic_key", mystic_key)
             .field("nitro", nitro)
+            .field("cornelia_shop", cornelia_shop)
             .field("firaga", firaga)
             .field("vampire", vampire)
             .field("star_ruby", star_ruby)
             .field("earth_rod", earth_rod)
             .field("lich", lich)
+            .field("crescent_lake_shop", crescent_lake_shop)
             .field("canoe", canoe)
             .field("evil_eye", evil_eye)
             .field("levi_stone", levi_stone)
@@ -855,7 +893,9 @@ impl core::fmt::Debug for SettingsDebug<'_> {
             .field("warp_cube", warp_cube)
             .field("waterfall_cave", waterfall_cave)
             .field("bottled_faerie", bottled_faerie)
+            .field("gaia_shop", gaia_shop)
             .field("oxyale", oxyale)
+            .field("onrac_shop", onrac_shop)
             .field("rosetta_stone", rosetta_stone)
             .field("kraken", kraken)
             .field("chime", chime)
