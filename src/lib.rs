@@ -250,8 +250,13 @@ pub struct Settings {
 
 async fn main() {
     asr::set_tick_rate(60.0);
-    let mut settings = Settings::register();
-    log!("Loaded settings: {:?}", SettingsDebug(&settings));
+
+    let mut settings = {
+        let mut s = Settings::register();
+        s.update();
+        log!("Loaded settings: {:?}", SettingsDebug(&s));
+        s
+    };
 
     loop {
         let process = Process::wait_attach("FINAL FANTASY.exe").await;
