@@ -519,7 +519,7 @@ impl Location {
                 | Location::CastleCornelia
                 | Location::EarthCave3
                 | Location::SageCave
-                | Location::CresentLake
+                | Location::CrescentLake
                 | Location::IceCave2
                 | Location::AirHangar
                 | Location::WaterfallCave
