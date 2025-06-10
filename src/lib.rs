@@ -696,18 +696,21 @@ impl Splits {
         }
 
         if in_battle.changed_to(&false) {
-            if playing.changed_to(&false) {
-                log!("Battle reset detected, no split!");
-                return None;
-            }
-
-            log!("Encounter: {monster:?} -- Ended");
-            if split == BattleSplit::BattleEnd {
-                // Chaos is always split on animation
-                if monster != Monster::Chaos {
-                    return Some(Ok(monster));
+            if result.changed_from(&BattleResult::Win) {
+                log!("Encounter: {monster:?} -- Ended");
+                if split == BattleSplit::BattleEnd {
+                    // Chaos is always split on animation
+                    if monster != Monster::Chaos {
+                        return Some(Ok(monster));
+                    }
                 }
             }
+
+            if result.unchanged() && result.current == BattleResult::None {
+                log!("Battle reset detected!");
+            }
+
+            return None;
         }
 
         if playing.changed_to(&false) {
