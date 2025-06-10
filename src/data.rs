@@ -145,13 +145,6 @@ impl Data<'_> {
             .and_then(|id| Monster::try_from_primitive(id).ok())
     }
 
-    pub fn battle_playing(&self) -> bool {
-        self.battles
-            .is_playing
-            .deref(self.process, self.module, self.image)
-            .unwrap_or_default()
-    }
-
     pub fn battle_result(&self) -> BattleResult {
         self.battles
             .end_result
@@ -250,7 +243,6 @@ struct BattleData {
     active: UnityPointer<2>,
     monster_party: UnityPointer<5>,
     end_result: UnityPointer<3>,
-    is_playing: UnityPointer<3>,
     elapsed_time: UnityPointer<2>,
 }
 
@@ -275,21 +267,12 @@ impl BattleData {
                 "resultType",
             ],
         );
-        let is_playing = ptr_path(
-            "BattlePlugManager",
-            [
-                "instance",
-                "<EventCommand>k__BackingField",
-                "<isBattlePlay>k__BackingField",
-            ],
-        );
         let elapsed_time = ptr_path("BattlePlugManager", ["instance", "elapsedTime"]);
 
         Self {
             active,
             monster_party,
             end_result,
-            is_playing,
             elapsed_time,
         }
     }

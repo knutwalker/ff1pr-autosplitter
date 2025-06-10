@@ -590,7 +590,6 @@ impl Title {
 
 struct Splits {
     in_battle: Watcher<bool>,
-    battle_playing: Watcher<bool>,
     battle_result: Watcher<BattleResult>,
     location: Watcher<Location>,
     items: Inventory,
@@ -602,7 +601,6 @@ impl Splits {
     fn new() -> Self {
         Self {
             in_battle: Watcher::new(),
-            battle_playing: Watcher::new(),
             battle_result: Watcher::new(),
             location: Watcher::new(),
             items: Inventory::empty(),
@@ -686,7 +684,6 @@ impl Splits {
 
         let monster = data.encounter()?;
 
-        let playing = self.battle_playing.update_infallible(data.battle_playing());
         let result = data.battle_result();
         let result = self.battle_result.update_infallible(result);
 
@@ -707,33 +704,41 @@ impl Splits {
             }
 
             if result.unchanged() && result.current == BattleResult::None {
-                log!("Battle reset detected!");
+                log!("Encounter: {monster:?} -- Reset");
             }
 
             return None;
         }
 
-        if playing.changed_to(&false) {
+        if result.changed() {
             let result = result.current;
             log!("Encounter: {monster:?} -- {result:?}");
-            if result == BattleResult::Win {
-                if monster == Monster::Chaos {
-                    let elapsed_time = data.battle_time();
+        }
 
-                    self.chaos_end = elapsed_time + {
-                        const FRAMES: f32 = 120.0;
-                        const FPS: f32 = 60.0;
-                        // 2 seconds of "battle igt"
-                        FRAMES / FPS
-                    };
-                } else if split == BattleSplit::DeathAnimation {
+        if monster == Monster::Chaos {
+            if result.changed_to(&BattleResult::Win) {
+                log!("Chaos defeated, GG!");
+                let elapsed_time = data.battle_time();
+
+                self.chaos_end = elapsed_time + {
+                    const FRAMES: f32 = 120.0;
+                    const FPS: f32 = 60.0;
+                    // 2 seconds of "battle igt"
+                    FRAMES / FPS
+                };
+            }
+
+            if result.unchanged() && result.current == BattleResult::Win {
+                let elapsed_time = data.battle_time();
+                if elapsed_time > self.chaos_end {
+                    self.chaos_end = f32::MAX;
                     return Some(Ok(monster));
                 }
             }
-        } else if playing.current == false && monster == Monster::Chaos {
-            let elapsed_time = data.battle_time();
-            if elapsed_time > self.chaos_end {
-                self.chaos_end = f32::MAX;
+        }
+
+        if result.changed_to(&BattleResult::Win) {
+            if split == BattleSplit::DeathAnimation {
                 return Some(Ok(monster));
             }
         }
