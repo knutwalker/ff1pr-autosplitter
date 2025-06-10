@@ -78,13 +78,13 @@ pub struct Settings {
     /// When to split on battles.
     battle_split: BattleSplit,
 
-    /// Splits: Only enable the settings that match your splits.
+    /// Splits: Only enable the settings that match your splits!
     _splits_heading1: Heading,
 
-    /// You don't need to all, only what you want to split.
+    /// You don't need to enable all, only what you want to split.
     _splits_heading2: Heading,
 
-    /// Anything else not mentioned here can be split manually.
+    /// Anything else not mentioned here can still be split manually.
     _splits_heading3: Heading,
 
     /// Split when defeating Garland
@@ -139,7 +139,7 @@ pub struct Settings {
     #[default = false]
     nitro: bool,
 
-    // Split after shopping in Cornelia
+    /// Split after shopping in Cornelia
     #[default = false]
     cornelia_shop: bool,
 
@@ -163,7 +163,7 @@ pub struct Settings {
     #[default = false]
     lich: bool,
 
-    // Split after shopping in Crescent Lake
+    /// Split after shopping in Crescent Lake
     #[default = false]
     crescent_lake_shop: bool,
 
@@ -199,7 +199,7 @@ pub struct Settings {
     #[default = false]
     bottled_faerie: bool,
 
-    // Split after shopping in Gaia
+    /// Split after shopping in Gaia
     #[default = false]
     gaia_shop: bool,
 
@@ -207,7 +207,7 @@ pub struct Settings {
     #[default = false]
     oxyale: bool,
 
-    // Split after shopping in Onrac
+    /// Split after shopping in Onrac
     #[default = false]
     onrac_shop: bool,
 
