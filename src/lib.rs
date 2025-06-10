@@ -103,7 +103,7 @@ pub struct Settings {
     #[default = false]
     ship: bool,
 
-    /// Split when done with shopping in Elfenheim
+    /// Split after shopping in Elfenheim
     #[default = false]
     elfen_shop: bool,
 
