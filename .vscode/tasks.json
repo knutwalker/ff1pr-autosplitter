@@ -31,7 +31,7 @@
 			"command": "watch",
 			"args": [
 				"-x",
-				"b"
+				"build --release"
 			],
 			"problemMatcher": [
 				"$rustc",
