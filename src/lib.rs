@@ -352,8 +352,8 @@ enum SplitOn {
     Lute,
     Pirates,
     Ship,
-    MarshShop,
-    MarshCave,
+    ElfenheimItemShop,
+    EnterMarshCave,
     Piscodemons,
     Crown,
     Astos,
@@ -394,8 +394,8 @@ enum SplitOn {
 impl SplitOn {
     fn from_watcher(watcher: &Pair<Location>) -> Option<Self> {
         match (watcher.old, watcher.current) {
-            (Location::ElfenheimItemShop, Location::Elfenheim) => Some(Self::MarshShop),
-            (Location::WorldMap, Location::MarshCave1) => Some(Self::MarshCave),
+            (Location::ElfenheimItemShop, Location::Elfenheim) => Some(Self::ElfenheimItemShop),
+            (Location::WorldMap, Location::MarshCave1) => Some(Self::EnterMarshCave),
             (Location::MelmondBMShop, Location::Melmond) => Some(Self::Firaga),
             (Location::IceCave1, Location::WorldMap) => Some(Self::IceCave),
             (Location::WaterfallCave, Location::WorldMap) => Some(Self::WaterfallCave),
@@ -462,8 +462,8 @@ impl Settings {
             SplitOn::Lute => *lute,
             SplitOn::Pirates => *pirates,
             SplitOn::Ship => *ship,
-            SplitOn::MarshShop => *elfen_shop,
-            SplitOn::MarshCave => *marsh_cave,
+            SplitOn::ElfenheimItemShop => *elfen_shop,
+            SplitOn::EnterMarshCave => *marsh_cave,
             SplitOn::Piscodemons => *piscodemons,
             SplitOn::Crown => *crown,
             SplitOn::Astos => *astos,
