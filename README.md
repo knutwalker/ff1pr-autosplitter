@@ -2,11 +2,12 @@
 
 An auto splitter for Final Fantasy Pixel Remaster.
 
-Implemented:
+## Features
 
-* [x] Start timer on new game
-* [x] Splits when defeated certain enemies or gained certain items (see settings)
-* [x] Split on Chaos death animation
+* ✅ Start timer on new game
+* ✅ Splits at various moments in-game that are commonly split (see settings)
+* ✅ Split on Chaos death animation
+* ✅ Works with both, the Steam and the Windows Store version
 
 ## Usage
 
