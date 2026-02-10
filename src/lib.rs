@@ -414,17 +414,6 @@ enum SplitOn {
 impl SplitOn {
     fn from_watcher(watcher: &Pair<Location>) -> Option<Self> {
         match (watcher.old, watcher.current) {
-            (Location::ElfenheimItemShop, Location::Elfenheim) => Some(Self::ElfenheimItemShop),
-            (Location::WorldMap, Location::MarshCave1) => Some(Self::EnterMarshCave),
-            (Location::CorneliaItemShop, Location::Cornelia) => Some(Self::CorneliaItemShop),
-            (Location::MelmondBMShop, Location::Melmond) => Some(Self::Firaga),
-            (Location::CLItemShop, Location::CrescentLake) => Some(Self::CrescentLakeShop),
-            (Location::IceCave1, Location::WorldMap) => Some(Self::IceCave),
-            (Location::WaterfallCave, Location::WorldMap) => Some(Self::WaterfallCave),
-            (Location::GaiaItemShop, Location::Gaia) => Some(Self::GaiaItemShop),
-            (Location::OnracItemShop, Location::Onrac) => Some(Self::OnracItemShop),
-            (Location::MirageTower3, Location::FlyingFortress) => Some(Self::FlyingFortress),
-            (Location::ChaosShrine3, Location::ChaosShrine2) => Some(Self::ChaosShrine),
             _ => None,
         }
     }
@@ -540,26 +529,7 @@ struct NoBattle;
 
 impl Location {
     fn has_key_item(self) -> bool {
-        matches!(
-            self,
-            Location::CorneliaThrone
-                | Location::Pravoka
-                | Location::MarshCave3
-                | Location::WesternKeep
-                | Location::MatoyaCave
-                | Location::ElvenCastle
-                | Location::CastleCornelia
-                | Location::EarthCave3
-                | Location::SageCave
-                | Location::CrescentLake
-                | Location::IceCave2
-                | Location::AirHangar
-                | Location::WaterfallCave
-                | Location::OasisShop
-                | Location::Gaia
-                | Location::Underwater5
-                | Location::Lufenia
-        )
+        true
     }
 }
 
@@ -648,27 +618,7 @@ impl Splits {
 
     fn split_check(&mut self, data: &Data, split: BattleSplit) -> Option<SplitOn> {
         match self.battle_check(data, split)? {
-            Ok(monster) => {
-                return Some(match monster {
-                    Monster::Garland => SplitOn::Garland,
-                    Monster::Pirates => SplitOn::Pirates,
-                    Monster::Piscodemons => SplitOn::Piscodemons,
-                    Monster::Astos => SplitOn::Astos,
-                    Monster::Vampire => SplitOn::Vampire,
-                    Monster::Lich => SplitOn::Lich,
-                    Monster::EvilEye => SplitOn::EvilEye,
-                    Monster::Kraken => SplitOn::Kraken,
-                    Monster::BlueDragon => SplitOn::BlueDragon,
-                    Monster::Tiamat => SplitOn::Tiamat,
-                    Monster::Marilith => SplitOn::Marilith,
-                    Monster::DeathEye => SplitOn::DeathEye,
-                    Monster::Lich2 => SplitOn::Lich2,
-                    Monster::Marilith2 => SplitOn::Marilith2,
-                    Monster::Kraken2 => SplitOn::Kraken2,
-                    Monster::Tiamat2 => SplitOn::Tiamat2,
-                    Monster::Chaos => SplitOn::Chaos,
-                })
-            }
+            Ok(_monster) => {}
             Err(_no_battle) => {}
         }
 
@@ -678,27 +628,7 @@ impl Splits {
         };
 
         if field.has_key_item() {
-            if let Some(item) = self.inventory_check(data) {
-                return Some(match item {
-                    Item::Lute => SplitOn::Lute,
-                    Item::Ship => SplitOn::Ship,
-                    Item::Crown => SplitOn::Crown,
-                    Item::CrystalEye => SplitOn::CrystalEye,
-                    Item::Tonic => SplitOn::Tonic,
-                    Item::MysticKey => SplitOn::MysticKey,
-                    Item::Nitro => SplitOn::Nitro,
-                    Item::StarRuby => SplitOn::StarRuby,
-                    Item::EarthRod => SplitOn::EarthRod,
-                    Item::Canoe => SplitOn::Canoe,
-                    Item::LeviStone => SplitOn::LeviStone,
-                    Item::AirShip => SplitOn::AirShip,
-                    Item::WarpCube => SplitOn::WarpCube,
-                    Item::BottledFaerie => SplitOn::BottledFaerie,
-                    Item::Oxyale => SplitOn::Oxyale,
-                    Item::RosettaStone => SplitOn::RosettaStone,
-                    Item::Chime => SplitOn::Chime,
-                });
-            }
+            if let Some(_item) = self.inventory_check(data) {}
         }
 
         return None;
@@ -710,14 +640,20 @@ impl Splits {
         split: BattleSplit,
     ) -> Option<Result<Monster, NoBattle>> {
         let in_battle = self.in_battle.update_infallible(data.battle_active());
+        timer::set_variable(
+            "in_battle",
+            if in_battle.current { "true" } else { "false" },
+        );
         if in_battle.current == false && in_battle.unchanged() {
             return Some(Err(NoBattle));
         }
 
         let monster = data.encounter()?;
+        timer::set_variable_int("monster", monster.id);
 
         let result = data.battle_result();
         let result = self.battle_result.update_infallible(result);
+        timer::set_variable_int("battle_result", result.current as u32);
 
         if in_battle.changed_to(&true) {
             log!("Encounter: {monster:?} -- Started");
@@ -728,10 +664,7 @@ impl Splits {
             if result.changed_from(&BattleResult::Win) {
                 log!("Encounter: {monster:?} -- Ended");
                 if split == BattleSplit::BattleEnd {
-                    // Chaos is always split on animation
-                    if monster != Monster::Chaos {
-                        return Some(Ok(monster));
-                    }
+                    return Some(Ok(monster));
                 }
             }
 
@@ -747,27 +680,27 @@ impl Splits {
             log!("Encounter: {monster:?} -- {result:?}");
         }
 
-        if monster == Monster::Chaos {
-            if result.changed_to(&BattleResult::Win) {
-                log!("Chaos defeated, GG!");
-                let elapsed_time = data.battle_time();
+        // if monster == Monster::Chaos {
+        //     if result.changed_to(&BattleResult::Win) {
+        //         log!("Chaos defeated, GG!");
+        //         let elapsed_time = data.battle_time();
 
-                self.chaos_end = elapsed_time + {
-                    const FRAMES: f32 = 120.0;
-                    const FPS: f32 = 60.0;
-                    // 2 seconds of "battle igt"
-                    FRAMES / FPS
-                };
-            }
+        //         self.chaos_end = elapsed_time + {
+        //             const FRAMES: f32 = 120.0;
+        //             const FPS: f32 = 60.0;
+        //             // 2 seconds of "battle igt"
+        //             FRAMES / FPS
+        //         };
+        //     }
 
-            if result.unchanged() && result.current == BattleResult::Win {
-                let elapsed_time = data.battle_time();
-                if elapsed_time > self.chaos_end {
-                    self.chaos_end = f32::MAX;
-                    return Some(Ok(monster));
-                }
-            }
-        }
+        //     if result.unchanged() && result.current == BattleResult::Win {
+        //         let elapsed_time = data.battle_time();
+        //         if elapsed_time > self.chaos_end {
+        //             self.chaos_end = f32::MAX;
+        //             return Some(Ok(monster));
+        //         }
+        //     }
+        // }
 
         if result.changed_to(&BattleResult::Win) {
             if split == BattleSplit::DeathAnimation {
@@ -781,6 +714,7 @@ impl Splits {
     fn field_check(&mut self, data: &Data) -> Option<Result<SplitOn, Location>> {
         let location = data.location()?;
         let location = self.location.update_infallible(location);
+        timer::set_variable_int("location", location.current.id);
         if let Some(field) = SplitOn::from_watcher(location) {
             return Some(Ok(field));
         }
@@ -790,11 +724,17 @@ impl Splits {
 
     fn inventory_check(&mut self, data: &Data) -> Option<Item> {
         if let Some(item) = data.key_item_ids().find(|item| self.items.insert(item)) {
+            timer::set_variable_int("last_key_item", item.id);
             log!("Picked up the {item:?}");
             return Some(item);
         }
 
-        if let Some(vehicle) = data.vehicle_ids().find(|item| self.items.insert(item)) {
+        if let Some((vehicle, map)) = data
+            .vehicle_ids()
+            .find(|(item, _map)| self.items.insert(item))
+        {
+            timer::set_variable_int("last_vehicle", vehicle.id);
+            timer::set_variable_int("last_vehicle_map", map.id);
             log!("Obtained up the {vehicle:?}");
             return Some(vehicle);
         }

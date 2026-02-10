@@ -4,7 +4,7 @@ use asr::{
 };
 use bytemuck::{AnyBitPattern, CheckedBitPattern};
 use core::{fmt, marker::PhantomData, mem::size_of};
-use num_enum::{FromPrimitive, IntoPrimitive, TryFromPrimitive};
+use num_enum::FromPrimitive;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, FromPrimitive)]
 #[repr(u32)]
@@ -19,96 +19,27 @@ pub enum BattleResult {
     Unknown = u32::MAX,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, TryFromPrimitive)]
-#[repr(u32)]
-pub enum Monster {
-    Garland = 350,
-    Pirates = 349,
-    Piscodemons = 88,
-    Astos = 348,
-    Vampire = 347,
-    Lich = 345,
-    EvilEye = 312,
-    Kraken = 343,
-    BlueDragon = 239,
-    Tiamat = 342,
-    Marilith = 344,
-    DeathEye = 197,
-    Lich2 = 338,
-    Marilith2 = 339,
-    Kraken2 = 340,
-    Tiamat2 = 341,
-    Chaos = 346,
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[repr(transparent)]
+pub struct Monster {
+    pub id: u32,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, TryFromPrimitive)]
-#[repr(u32)]
-pub enum Location {
-    WorldMap = 1,
-    CastleCornelia = 2,
-    CorneliaThrone = 3,
-    Cornelia = 4,
-    CorneliaItemShop = 6,
-    MatoyaCave = 12,
-    Pravoka = 13,
-    Elfenheim = 22,
-    ElfenheimItemShop = 24,
-    _ElfenheimBMShop = 31,
-    ElvenCastle = 32,
-    WesternKeep = 33,
-    Melmond = 34,
-    _MelmondArmorShop = 37,
-    MelmondBMShop = 39,
-    SageCave = 40,
-    CrescentLake = 41,
-    CLItemShop = 43,
-    _CrescentLakeBMShop = 48,
-    Onrac = 52,
-    OnracItemShop = 54,
-    OasisShop = 59,
-    Gaia = 60,
-    GaiaItemShop = 62,
-    _GaiaBMShop = 67,
-    Lufenia = 70,
-    MarshCave1 = 73,
-    MarshCave3 = 75,
-    EarthCave3 = 78,
-    IceCave1 = 88,
-    IceCave2 = 91,
-    Underwater5 = 103,
-    WaterfallCave = 104,
-    MirageTower3 = 107,
-    FlyingFortress = 108,
-    ChaosShrine2 = 114,
-    ChaosShrine3 = 115,
-    AirHangar = 122,
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[repr(transparent)]
+pub struct Location {
+    pub id: u32,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, TryFromPrimitive, IntoPrimitive)]
-#[repr(u32)]
-pub enum Item {
-    Lute = 44,
-    Ship = 4,
-    Crown = 45,
-    CrystalEye = 46,
-    Tonic = 47,
-    MysticKey = 48,
-    Nitro = 49,
-    StarRuby = 52,
-    EarthRod = 53,
-    Canoe = 60,
-    LeviStone = 54,
-    AirShip = 3,
-    WarpCube = 57,
-    BottledFaerie = 58,
-    Oxyale = 59,
-    RosettaStone = 51,
-    Chime = 55,
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[repr(transparent)]
+pub struct Item {
+    pub id: u32,
 }
 
 impl super::EnumSetMember for Item {
     fn ordinal(&self) -> Option<u8> {
-        u8::try_from(u32::from(*self)).ok()
+        u8::try_from(self.id).ok()
     }
 }
 
@@ -152,7 +83,7 @@ impl Data<'_> {
             .deref::<Pointer<Array<_>>>(self.process, self.module, self.image)
             .ok()?
             .get(self.process, Self::ENCOUNTER_ID_INDEX)
-            .and_then(|id| Monster::try_from_primitive(id).ok())
+            .map(|id| Monster { id })
     }
 
     pub fn battle_result(&self) -> BattleResult {
@@ -177,10 +108,10 @@ impl Data<'_> {
             .filter_map(|key_items| key_items.iter(self.process))
             .flatten()
             .map(|(item_id_plus_1, _)| item_id_plus_1 - 1)
-            .filter_map(|item_id| Item::try_from_primitive(item_id).ok())
+            .map(|id| Item { id })
     }
 
-    pub fn vehicle_ids(&self) -> impl Iterator<Item = Item> + '_ {
+    pub fn vehicle_ids(&self) -> impl Iterator<Item = (Item, Location)> + '_ {
         self.items
             .vehicles
             .deref::<Pointer<List<Pointer<OwnedTransportationData>>>>(
@@ -203,10 +134,12 @@ impl Data<'_> {
                     .read(self.process, vehicle.data.addr())
                     .ok()?;
 
-                let item = Item::try_from(vehicle.id).ok()?;
-                let _ = u32::try_from(vehicle.map_id).ok()?;
+                let item = Item { id: vehicle.id };
+                let map = Location {
+                    id: u32::try_from(vehicle.map_id).ok()?,
+                };
 
-                Some(item)
+                Some((item, map))
             })
     }
 
@@ -215,7 +148,7 @@ impl Data<'_> {
             .map_id
             .deref(self.process, self.module, self.image)
             .ok()
-            .and_then(|id| Location::try_from_primitive(id).ok())
+            .map(|id| Location { id })
     }
 
     pub fn has_fade_out(&self) -> bool {

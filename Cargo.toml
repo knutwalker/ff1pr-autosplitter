@@ -9,6 +9,7 @@ asr = { git = "https://github.com/LiveSplit/asr", features = [
     # "alloc", # Working with allocations.
     "derive", # Defining your own settings structs, converting endianness, and binding to .NET classes.
     "unity",  # Accessing games using the Unity engine.
+    "integer-vars",
 ] }
 bytemuck = { version = "1", features = ["derive", "min_const_generics"] }
 num_enum = { version = "0.7.3", default-features = false }
