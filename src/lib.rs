@@ -275,7 +275,7 @@ async fn main() {
     };
 
     loop {
-        let process = Process::wait_attach("FINAL FANTASY.exe").await;
+        let process = Process::wait_attach("FINAL FANTASY IV.exe").await;
         log!("attached to process");
         process
             .until_closes(game_loop(&process, &mut settings))
