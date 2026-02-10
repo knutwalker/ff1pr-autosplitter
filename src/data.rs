@@ -1,9 +1,10 @@
 use asr::{
+    arrayvec::ArrayVec,
     game_engine::unity::il2cpp::{Class, Image, Module, UnityPointer},
     Address, Address64, Process,
 };
 use bytemuck::{AnyBitPattern, CheckedBitPattern};
-use core::{fmt, marker::PhantomData, mem::size_of};
+use core::{fmt, marker::PhantomData, mem::size_of, num::NonZeroU32};
 use num_enum::FromPrimitive;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, FromPrimitive)]
@@ -43,6 +44,24 @@ impl super::EnumSetMember for Item {
     }
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct CorpsData {
+    pub id: u32, // 1 == front_row, 2 == back_row
+    pub char: Character,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[repr(transparent)]
+pub struct Character {
+    pub id: NonZeroU32,
+}
+
+impl super::EnumSetMember for Character {
+    fn ordinal(&self) -> Option<u8> {
+        u8::try_from(self.id.get() - 1).ok()
+    }
+}
+
 pub struct Data<'a> {
     new_game: NewGame,
     battles: BattleData,
@@ -59,7 +78,7 @@ impl<'a> Data<'a> {
             new_game: NewGame::new(),
             battles: BattleData::new(),
             items: ItemsData::new(process, module, image).await,
-            user: UserData::new(),
+            user: UserData::new(process, module, image).await,
             process,
             module,
             image,
@@ -149,6 +168,29 @@ impl Data<'_> {
             .deref(self.process, self.module, self.image)
             .ok()
             .map(|id| Location { id })
+    }
+
+    pub fn corps_list(&self) -> ArrayVec<CorpsData, 6> {
+        self.user
+            .corps_list
+            .deref::<Pointer<List<Pointer<Corps>>>>(self.process, self.module, self.image)
+            .into_iter()
+            .filter_map(|corps| corps.iter(self.process))
+            .flatten()
+            .filter_map(|corps| {
+                let corps = self.user.corps.read(self.process, corps.addr()).ok()?;
+                let data = self
+                    .user
+                    .corps_save
+                    .read(self.process, corps.data.addr())
+                    .ok()?;
+                let char = NonZeroU32::new(data.char_id)?;
+                Some(CorpsData {
+                    id: data.id,
+                    char: Character { id: char },
+                })
+            })
+            .collect()
     }
 
     pub fn has_fade_out(&self) -> bool {
@@ -261,18 +303,46 @@ impl ItemsData {
     }
 }
 
+#[derive(Class, Debug)]
+struct Corps {
+    #[rename = "saveData"]
+    data: Pointer<CorpsSaveData>,
+}
+
+#[derive(Class, Debug)]
+struct CorpsSaveData {
+    id: u32,
+    #[rename = "characterId"]
+    char_id: u32,
+}
+
 struct UserData {
     map_id: UnityPointer<2>,
+    corps_list: UnityPointer<2>,
+    corps: CorpsBinding,
+    corps_save: CorpsSaveDataBinding,
 }
 
 impl UserData {
-    fn new() -> Self {
+    async fn new(process: &Process, module: &Module, image: &Image) -> Self {
         let map_id = ptr_path(
             "UserDataManager",
             ["instance", "<CurrentMapId>k__BackingField"],
         );
+        let corps_list = ptr_path(
+            "UserDataManager",
+            ["instance", "<corpsList>k__BackingField"],
+        );
 
-        Self { map_id }
+        let corps = Corps::bind(process, module, image).await;
+        let corps_save = CorpsSaveData::bind(process, module, image).await;
+
+        Self {
+            map_id,
+            corps_list,
+            corps,
+            corps_save,
+        }
     }
 }
 

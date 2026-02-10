@@ -11,7 +11,7 @@ use asr::{
 use core::{marker::PhantomData, ops::ControlFlow};
 use num_enum::IntoPrimitive;
 
-use crate::data::{BattleResult, Data, Item, Location, Monster};
+use crate::data::{BattleResult, Character, Data, Item, Location, Monster};
 
 mod data;
 
@@ -558,6 +558,18 @@ impl<T: EnumSetMember> EnumSet<T> {
         self.0 |= mask;
         return previous == 0;
     }
+
+    fn contains(&mut self, item: &T) -> bool {
+        let Some(ord) = item.ordinal() else {
+            return false;
+        };
+        if ord >= 64 {
+            return false;
+        }
+
+        let mask = 1_u64 << ord;
+        return (self.0 & mask) == mask;
+    }
 }
 
 impl EnumSetMember for SplitOn {
@@ -568,6 +580,7 @@ impl EnumSetMember for SplitOn {
 
 type Inventory = EnumSet<Item>;
 type SeenSplits = EnumSet<SplitOn>;
+type Party = EnumSet<Character>;
 
 struct Title {
     fade_out: Watcher<bool>,
@@ -630,6 +643,8 @@ impl Splits {
         if field.has_key_item() {
             if let Some(_item) = self.inventory_check(data) {}
         }
+
+        if let Some(_corps) = self.corps_check(data) {}
 
         return None;
     }
@@ -740,6 +755,16 @@ impl Splits {
         }
 
         return None;
+    }
+
+    fn corps_check(&mut self, data: &Data) -> Option<Party> {
+        let corps = data.corps_list();
+        let mut chars = Party::empty();
+        for c in corps {
+            chars.insert(&c.char);
+        }
+        timer::set_variable_int("party", chars.0);
+        return Some(chars);
     }
 }
 
